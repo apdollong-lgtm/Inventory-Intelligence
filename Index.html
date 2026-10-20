@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventory Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#eef3fb;--card:#fff;--navy:#0b1f4d;--navy2:#132b66;--blue:#1f6feb;--blue-soft:#e7f0ff;
+  --green:#16a34a;--green-soft:#e6f7ec;--orange:#f97316;--orange-soft:#fff1e6;--red:#ef4444;--red-soft:#feecec;
+  --purple:#8b5cf6;--purple-soft:#f1ebff;--yellow:#f5b70a;--text:#0f172a;--muted:#64748b;--line:#e6ebf3;
+  --radius:16px;--shadow:0 1px 2px rgba(15,23,42,.04),0 6px 20px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans Thai',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+/* sidebar */
+.sidebar{background:linear-gradient(180deg,var(--navy),#0a1a40);color:#fff;padding:20px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px;z-index:40}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 20px;font-weight:700;line-height:1.15;font-size:16px}
+.brand .logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);display:grid;place-items:center;box-shadow:0 4px 14px rgba(59,130,246,.45)}
+.nav-btn{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;color:#c7d2fe;padding:11px 12px;border-radius:10px;cursor:pointer;text-align:left;font-weight:500}
+.nav-btn svg{width:18px;height:18px;flex:none}
+.nav-btn:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-btn.active{background:var(--blue);color:#fff;box-shadow:0 6px 16px rgba(31,111,235,.45)}
+.side-foot{margin-top:auto;font-size:12px;color:#93a4d1;padding:10px;border-top:1px solid rgba(255,255,255,.08)}
+.side-foot a{color:#bfdbfe}
+.overlay{display:none}
+/* main */
+main{min-width:0;padding:18px 22px 40px}
+.topbar{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.hamb{display:none;border:0;background:#fff;border-radius:10px;width:40px;height:40px;box-shadow:var(--shadow);cursor:pointer}
+.greet{flex:1;min-width:0}
+.greet h1{margin:0;font-size:20px;font-weight:700}
+.greet p{margin:2px 0 0;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:0 12px;height:42px;width:min(360px,34vw)}
+.search input{border:0;outline:0;flex:1;min-width:0;background:transparent}
+.icon-btn{position:relative;border:0;background:#fff;width:42px;height:42px;border-radius:12px;box-shadow:var(--shadow);cursor:pointer;display:grid;place-items:center}
+.badge{position:absolute;top:4px;right:4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:99px;min-width:17px;height:17px;display:grid;place-items:center;padding:0 4px}
+.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#60a5fa,#2563eb);color:#fff;display:grid;place-items:center;font-weight:700}
+.demo{background:#fff7e0;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:13px}
+.page{display:none}.page.active{display:block;animation:fade .25s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.toolbar h2{margin:0;font-size:18px}
+.range{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+.range label{font-size:12px;color:var(--muted)}
+.range input,.range select{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:#fff}
+/* cards */
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,1fr);margin-bottom:16px}
+.g2{grid-template-columns:1fr 1fr;margin-bottom:16px}
+.g3{grid-template-columns:repeat(3,1fr);margin-bottom:16px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;min-width:0}
+.card-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}
+.card-h h3{margin:0;font-size:17px;color:var(--navy)}
+.card-h p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.link-btn{border:1px solid var(--line);background:#fff;border-radius:99px;padding:5px 12px;font-size:12px;color:var(--navy2);cursor:pointer;white-space:nowrap}
+.link-btn:hover{background:var(--blue-soft)}
+.kpi{display:flex;gap:14px;align-items:flex-start}
+.kpi .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;flex:none}
+.kpi .ic svg{width:26px;height:26px}
+.kpi .lbl{font-size:13px;font-weight:600}
+.kpi .val{font-size:26px;font-weight:800;line-height:1.2;margin-top:2px}
+.kpi .unit{font-size:12px;color:var(--muted)}
+.kpi .chg{font-size:12.5px;font-weight:600;margin-top:6px}
+.kpi .chg small{display:block;color:var(--muted);font-weight:400}
+.up{color:var(--green)}.down{color:var(--red)}
+.kpi.k-red{background:linear-gradient(180deg,#fff5f5,#fff)} .kpi.k-red .lbl,.kpi.k-red .val{color:#dc2626}
+.kpi.k-purple{background:linear-gradient(180deg,#f8f5ff,#fff)} .kpi.k-purple .lbl,.kpi.k-purple .val{color:#6d28d9}
+.chart-box{position:relative;height:240px}
+.pill-big{background:var(--green-soft);color:var(--green);border-radius:12px;padding:6px 12px;text-align:center;font-weight:800;font-size:20px;line-height:1.1}
+.pill-big small{display:block;font-size:11.5px;font-weight:600}
+/* donut */
+.donut-wrap{display:grid;grid-template-columns:200px 1fr;gap:16px;align-items:center}
+.donut{position:relative;height:200px}
+.donut .center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;pointer-events:none}
+.donut .center b{font-size:26px;display:block;line-height:1}
+.donut .center span{font-size:12px;color:var(--muted)}
+.legend{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.legend li{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center}
+.legend .dot{width:12px;height:12px;border-radius:50%}
+.legend small{display:block;color:var(--muted);font-size:11.5px}
+.legend b{font-size:14px}
+/* abc */
+.abc{display:grid;gap:10px}
+.abc-row{display:grid;grid-template-columns:44px 1fr auto auto;gap:12px;align-items:center;border-radius:12px;padding:10px 12px}
+.abc-row .tag{width:40px;height:40px;border-radius:10px;color:#fff;font-weight:800;font-size:20px;display:grid;place-items:center}
+.abc-row small{display:block;color:var(--muted);font-size:11.5px}
+.abc-row .n{text-align:right;font-weight:700}
+/* tables */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--muted);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;background:#f8fafd}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.prod{display:flex;gap:10px;align-items:center}
+.prod .pi{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:17px;background:#f3f6fb;flex:none}
+.prod b{display:block;font-weight:600;font-size:13px}
+.prod small{color:var(--muted);font-size:11.5px}
+.chip{display:inline-block;border-radius:8px;padding:3px 10px;font-weight:700;font-size:12.5px;min-width:44px;text-align:center}
+.c-red{background:var(--red-soft);color:#dc2626}.c-green{background:var(--green-soft);color:var(--green)}
+.c-orange{background:var(--orange-soft);color:#ea580c}.c-blue{background:var(--blue-soft);color:var(--blue)}
+.c-purple{background:var(--purple-soft);color:#7c3aed}.c-gray{background:#eef1f6;color:#475569}
+/* alerts */
+.alerts{display:grid;gap:4px}
+.alert{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:9px 6px;border-bottom:1px solid var(--line)}
+.alert:last-child{border-bottom:0}
+.alert .ai{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:18px}
+.alert b{display:block;font-size:13px}
+.alert span{color:var(--muted);font-size:12px}
+.alert time{color:var(--muted);font-size:11.5px;white-space:nowrap}
+/* forms */
+.btn{border:0;border-radius:10px;padding:9px 16px;font-weight:600;cursor:pointer;background:var(--blue);color:#fff;display:inline-flex;gap:8px;align-items:center;white-space:nowrap}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:#fff;color:var(--navy2);border:1px solid var(--line)}
+.btn.green{background:var(--green)}.btn.red{background:var(--red)}.btn.orange{background:var(--orange)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.form .full{grid-column:1/-1}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;outline:0}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(31,111,235,.15)}
+.seg{display:flex;background:#f1f4f9;border-radius:10px;padding:4px;gap:4px}
+.seg button{flex:1;border:0;background:transparent;padding:8px;border-radius:8px;cursor:pointer;font-weight:600;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--text);box-shadow:var(--shadow)}
+.seg button.on[data-t=IN]{color:var(--green)}.seg button.on[data-t=OUT]{color:var(--red)}.seg button.on[data-t=ADJ]{color:var(--orange)}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.filters input,.filters select{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+.hint{color:var(--muted);font-size:12.5px}
+.empty{text-align:center;color:var(--muted);padding:26px 10px}
+/* modal & toast */
+.modal{position:fixed;inset:0;background:rgba(11,31,77,.45);display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
+.modal.open{display:flex}
+.modal .box{background:#fff;border-radius:18px;width:min(620px,100%);max-height:92vh;overflow:auto;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{margin:0 0 14px}
+.modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);background:var(--navy);color:#fff;border-radius:12px;padding:11px 18px;opacity:0;transition:.25s;z-index:80;max-width:calc(100% - 32px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast.err{background:#b91c1c}
+.loading{position:fixed;inset:0;background:rgba(238,243,251,.7);display:none;place-items:center;z-index:70}
+.loading.on{display:grid}
+.spinner{width:42px;height:42px;border:4px solid #c7d7f5;border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ws{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:linear-gradient(90deg,#fff,#eef5ff);}
+.ws ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;flex:1;min-width:240px}
+.ws li::before{content:'✓';display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;margin-right:8px}
+.action-card{display:flex;gap:14px;align-items:flex-start}
+.action-card .ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;flex:none}
+.action-card h4{margin:0 0 4px;font-size:15px}
+.action-card p{margin:0 0 10px;color:var(--muted);font-size:12.5px}
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer}
+.switch input{width:18px;height:18px}
+/* responsive */
+@media (max-width:1180px){.kpis{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:980px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:250px;transform:translateX(-100%);transition:transform .25s}
+  .sidebar.open{transform:none}
+  .overlay.open{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:35}
+  .hamb{display:grid;place-items:center}
+  .g2,.g3{grid-template-columns:1fr}
+  .search{display:none}
+}
+@media (max-width:600px){
+  main{padding:12px 16px 32px}
+  .kpis{gap:10px}
+  .card{padding:14px}
+  .kpi{flex-direction:column;gap:8px}
+  .kpi .ic{width:40px;height:40px}
+  .kpi .val{font-size:21px}
+  .donut-wrap{grid-template-columns:1fr}
+  .donut{height:190px}
+  .form{grid-template-columns:1fr}
+  .greet h1{font-size:17px}
+  .abc-row{grid-template-columns:40px 1fr auto}
+  .abc-row .val-col{display:none}
+  .ws ul{grid-template-columns:1fr}
+  .range{width:100%}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg></div>
+      <div>Inventory<br>Intelligence</div>
+    </div>
+    <button class="nav-btn active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 11 12 3l9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>Dashboard</button>
+    <button class="nav-btn" data-page="products"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>Products</button>
+    <button class="nav-btn" data-page="transactions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h13l-4-4M17 17H4l4 4"/></svg>บันทึกรับ/เบิก</button>
+    <button class="nav-btn" data-page="analysis"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20V10h3v10zm6.5 0V4h3v16zM17 20v-7h3v7z"/></svg>Analysis</button>
+    <button class="nav-btn" data-page="purchase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg>Purchase Plan</button>
+    <button class="nav-btn" data-page="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h12v20H6z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Reports</button>
+    <button class="nav-btn" data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+    <div class="side-foot" id="sideFoot">เชื่อมต่อ Google Sheets</div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <main>
+    <header class="topbar">
+      <button class="hamb" id="hamb" aria-label="เมนู"><svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div class="greet"><h1>👋 สวัสดีครับ</h1><p id="greetSub">ยินดีต้อนรับสู่ Inventory Intelligence</p></div>
+      <label class="search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="globalSearch" placeholder="ค้นหาสินค้า... (ชื่อ, SKU, หมวดหมู่)"></label>
+      <button class="icon-btn" id="bell" aria-label="แจ้งเตือน"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#0b1f4d" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="badge" id="bellCount">0</span></button>
+      <div class="avatar" id="avatar">U</div>
+    </header>
+    <div class="demo" id="demoBanner" hidden>🧪 <b>โหมดตัวอย่าง</b> — ข้อมูลจำลองในเบราว์เซอร์ (ไม่บันทึกจริง) เมื่อติดตั้งบน Google Apps Script ระบบจะอ่าน/เขียนข้อมูลกับ Google Sheets อัตโนมัติ</div>
+
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <div class="toolbar">
+        <h2>ภาพรวมสต็อก</h2>
+        <div class="range">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#0b1f4d" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+          <select id="preset">
+            <option value="30">30 วันล่าสุด</option><option value="90">90 วันล่าสุด</option>
+            <option value="180">6 เดือนล่าสุด</option><option value="365" selected>12 เดือนล่าสุด</option>
+            <option value="ytd">ปีนี้ (YTD)</option><option value="custom">กำหนดเอง</option>
+          </select>
+          <input type="date" id="dFrom"><span class="hint">–</span><input type="date" id="dTo">
+        </div>
+      </div>
+      <div class="grid kpis" id="kpis"></div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-h"><div><h3>Stock Aging</h3><p>อายุสินค้าคงคลัง (จำนวนรายการ)</p></div><button class="link-btn" data-go="analysis">ดูรายละเอียด ›</button></div>
+          <div class="chart-box"><canvas id="cAging"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h3>Inventory Turnover</h3><p>อัตราหมุนเวียนสินค้าคงคลัง (เท่า/ปี รายเดือน)</p></div><div class="pill-big" id="turnBadge">–</div></div>
+          <div class="chart-box"><canvas id="cTurn"></canvas></div>
+        </div>
+      </div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-h"><div><h3>Stock Status</h3><p>สัดส่วนสถานะสินค้าคงคลัง</p></div><button class="link-btn" data-go="products">ดูทั้งหมด ›</button></div>
+          <div class="donut-wrap">
+            <div class="donut"><canvas id="cStatus"></canvas><div class="center"><div><b id="statusTotal">0</b><span>รายการ</span></div></div></div>
+            <ul class="legend" id="statusLegend"></ul>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h3>ABC Analysis</h3><p>การแบ่งกลุ่มสินค้าตามมูลค่าการใช้</p></div><button class="link-btn" data-go="analysis">ดูทั้งหมด ›</button></div>
+          <div class="abc" id="abcBox"></div>
+        </div>
+      </div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-h"><div><h3>Reorder Suggestions</h3><p>สินค้าที่ควรสั่งซื้อเพิ่ม</p></div><button class="link-btn" data-go="purchase">ดูทั้งหมด ›</button></div>
+          <div class="tbl-wrap"><table><thead><tr><th>สินค้า</th><th class="num">สต็อกปัจจุบัน</th><th class="num">จุดสั่งซื้อ</th><th class="num">แนะนำสั่งซื้อ</th></tr></thead><tbody id="reorderMini"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h3>Recent Alerts</h3><p>การแจ้งเตือนล่าสุด</p></div><button class="link-btn" data-go="reports">ดูทั้งหมด ›</button></div>
+          <div class="alerts" id="alertsMini"></div>
+        </div>
+      </div>
+      <div class="card ws">
+        <div><b style="font-size:15px">เชื่อมต่อกับ Google Workspace</b><div class="hint">Sheets · Gmail · Drive · Apps Script</div></div>
+        <ul><li>จัดเก็บข้อมูลบน Google Sheets</li><li>อัปเดตแบบ Real-time</li><li>ทำงานร่วมกันได้ทุกที่</li><li>แจ้งเตือน + รายงานอัตโนมัติ</li></ul>
+      </div>
+    </section>
+
+    <!-- PRODUCTS -->
+    <section class="page" id="page-products">
+      <div class="toolbar">
+        <h2>สินค้า</h2>
+        <div class="filters">
+          <input id="pSearch" placeholder="ค้นหา ชื่อ / SKU">
+          <select id="pCat"><option value="">ทุกหมวดหมู่</option></select>
+          <select id="pStatus"><option value="">ทุกสถานะ</option><option value="ok">ปกติ</option><option value="alert">ต่ำกว่าเกณฑ์ (ใกล้หมด + หมด)</option><option value="low">ใกล้หมด</option><option value="out">หมดสต็อก</option><option value="over">เกินสต็อก</option></select>
+          <button class="btn" id="btnAddProduct">＋ เพิ่มสินค้า</button>
+        </div>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>สินค้า</th><th>หมวดหมู่</th><th class="num">คงเหลือ</th><th>สถานะ</th><th class="num">จุดสั่งซื้อ</th><th class="num">สูงสุด</th><th class="num">ต้นทุน</th><th class="num">มูลค่า</th><th class="num">อายุ (วัน)</th><th></th></tr></thead>
+        <tbody id="productRows"></tbody></table></div>
+        <div class="hint" id="productCount" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <!-- TRANSACTIONS -->
+    <section class="page" id="page-transactions">
+      <div class="toolbar"><h2>บันทึกรับเข้า / เบิกออก / ปรับปรุง</h2></div>
+      <div class="grid g2" style="grid-template-columns:minmax(0,420px) 1fr">
+        <div class="card">
+          <div class="seg" id="txType"><button type="button" data-t="IN" class="on">รับเข้า</button><button type="button" data-t="OUT">เบิกออก</button><button type="button" data-t="ADJ">ปรับปรุง</button></div>
+          <form id="txForm" class="form" style="margin-top:14px">
+            <div class="field full"><label>สินค้า</label><select id="txSku" required></select></div>
+            <div class="field"><label id="txQtyLbl">จำนวน</label><input type="number" id="txQty" step="any" required></div>
+            <div class="field"><label>ต้นทุน/หน่วย (บาท)</label><input type="number" id="txCost" min="0" step="any"></div>
+            <div class="field"><label>วันที่</label><input type="date" id="txDate"></div>
+            <div class="field"><label>เลขที่อ้างอิง</label><input id="txRef" placeholder="เช่น INV-001"></div>
+            <div class="field full"><label>หมายเหตุ</label><input id="txNote"></div>
+            <div class="full hint" id="txInfo"></div>
+            <div class="full"><button class="btn" type="submit" style="width:100%;justify-content:center" id="txSubmit">บันทึก</button></div>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h3>ประวัติการเคลื่อนไหว</h3><p>200 รายการล่าสุด</p></div>
+            <div class="filters"><input id="tSearch" placeholder="ค้นหา SKU / อ้างอิง"><select id="tType"><option value="">ทั้งหมด</option><option value="IN">รับเข้า</option><option value="OUT">เบิกออก</option><option value="ADJ">ปรับปรุง</option></select></div></div>
+          <div class="tbl-wrap"><table><thead><tr><th>วันที่</th><th>ประเภท</th><th>สินค้า</th><th class="num">จำนวน</th><th class="num">มูลค่า</th><th>อ้างอิง</th></tr></thead><tbody id="txRows"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ANALYSIS -->
+    <section class="page" id="page-analysis">
+      <div class="toolbar"><h2>วิเคราะห์เชิงลึก</h2><span class="hint" id="anRange"></span></div>
+      <div class="grid g2">
+        <div class="card"><div class="card-h"><div><h3>Pareto / ABC</h3><p>มูลค่าการใช้ต่อ SKU และสัดส่วนสะสม</p></div></div><div class="chart-box" style="height:280px"><canvas id="cPareto"></canvas></div></div>
+        <div class="card"><div class="card-h"><div><h3>มูลค่าคงคลังตามหมวดหมู่</h3><p>บาท</p></div></div><div class="chart-box" style="height:280px"><canvas id="cCat"></canvas></div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><div class="card-h"><div><h3>รับเข้า vs เบิกออก</h3><p>มูลค่ารายเดือน (บาท)</p></div></div><div class="chart-box" style="height:260px"><canvas id="cFlow"></canvas></div></div>
+        <div class="card"><div class="card-h"><div><h3>สินค้าค้างนาน / เคลื่อนไหวช้า</h3><p>ไม่มีการเบิกใน 90 วัน หรืออายุ &gt; 180 วัน</p></div></div>
+          <div class="tbl-wrap"><table><thead><tr><th>สินค้า</th><th class="num">คงเหลือ</th><th class="num">มูลค่า</th><th class="num">อายุ</th><th class="num">เบิก 90 วัน</th></tr></thead><tbody id="slowRows"></tbody></table></div></div>
+      </div>
+      <div class="card"><div class="card-h"><div><h3>ตาราง ABC ทั้งหมด</h3><p>เรียงตามมูลค่าการใช้ในช่วงที่เลือก</p></div></div>
+        <div class="tbl-wrap"><table><thead><tr><th>กลุ่ม</th><th>สินค้า</th><th class="num">ปริมาณใช้</th><th class="num">มูลค่าใช้</th><th class="num">% สะสม</th><th class="num">ใช้เฉลี่ย/วัน</th><th class="num">พอใช้ (วัน)</th><th class="num">Turnover</th></tr></thead><tbody id="abcRows"></tbody></table></div></div>
+    </section>
+
+    <!-- PURCHASE -->
+    <section class="page" id="page-purchase">
+      <div class="toolbar"><h2>แผนการสั่งซื้อ</h2><button class="btn green" id="btnCreatePO">สร้างใบสั่งซื้อจากรายการที่เลือก</button></div>
+      <div class="card" style="margin-bottom:16px"><div class="card-h"><div><h3>สินค้าที่ควรสั่งซื้อ</h3><p>คำนวณจาก: สต็อกสูงสุด − คงเหลือ − ค้างรับ</p></div></div>
+        <div class="tbl-wrap"><table><thead><tr><th><input type="checkbox" id="chkAll"></th><th>สินค้า</th><th>ผู้จำหน่าย</th><th class="num">คงเหลือ</th><th class="num">จุดสั่งซื้อ</th><th class="num">ค้างรับ</th><th class="num">พอใช้ (วัน)</th><th class="num">Lead time</th><th class="num">สั่งซื้อ</th><th class="num">มูลค่า</th></tr></thead><tbody id="planRows"></tbody></table></div>
+        <div style="text-align:right;margin-top:10px;font-weight:700" id="planTotal"></div></div>
+      <div class="card"><div class="card-h"><div><h3>ใบสั่งซื้อ (PO)</h3><p>กด "รับสินค้าเข้า" เพื่อเพิ่มสต็อกอัตโนมัติ</p></div></div>
+        <div class="tbl-wrap"><table><thead><tr><th>เลขที่</th><th>วันที่</th><th>รายการ</th><th class="num">มูลค่า</th><th>สถานะ</th><th></th></tr></thead><tbody id="poRows"></tbody></table></div></div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="page" id="page-reports">
+      <div class="toolbar"><h2>รายงาน & Automation</h2></div>
+      <div class="grid g2">
+        <div class="card action-card"><div class="ic" style="background:var(--purple-soft)">📄</div><div><h4>รายงานประจำเดือน</h4><p>สร้างชีต "Report YYYY-MM" สรุปมูลค่า รับเข้า/เบิกออก และ Top 10 (ส่งอีเมลถ้าเปิดไว้)</p><button class="btn" id="btnReport">สร้างรายงานเดือนที่แล้ว</button></div></div>
+        <div class="card action-card"><div class="ic" style="background:var(--orange-soft)">🔔</div><div><h4>ตรวจสต็อก + แจ้งเตือนอีเมล</h4><p>ตรวจสินค้าต่ำกว่าเกณฑ์/ล้นสต็อก แล้วส่งสรุปทาง Gmail</p><button class="btn orange" id="btnCheck">ตรวจตอนนี้</button></div></div>
+        <div class="card action-card"><div class="ic" style="background:var(--green-soft)">⬇️</div><div><h4>ส่งออกข้อมูล (CSV)</h4><p>ดาวน์โหลดเพื่อนำไปใช้ใน Excel / Looker Studio</p><button class="btn ghost" id="btnCsvP">สินค้า</button> <button class="btn ghost" id="btnCsvT">ธุรกรรม</button></div></div>
+        <div class="card action-card"><div class="ic" style="background:var(--blue-soft)">🗂️</div><div><h4>ฐานข้อมูล Google Sheets</h4><p>เปิดชีตเพื่อดู/แก้ไขข้อมูลดิบ</p><a class="btn ghost" id="lnkSheet" target="_blank" href="#">เปิด Google Sheets</a></div></div>
+      </div>
+      <div class="card"><div class="card-h"><div><h3>การแจ้งเตือนทั้งหมด</h3><p>100 รายการล่าสุด</p></div></div><div class="alerts" id="alertsAll"></div></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings">
+      <div class="toolbar"><h2>ตั้งค่า</h2></div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-h"><div><h3>ทั่วไป & การแจ้งเตือน</h3></div></div>
+          <form id="setForm" class="form">
+            <div class="field full"><label>ชื่อบริษัท</label><input id="sCompany"></div>
+            <div class="field full"><label>อีเมลรับแจ้งเตือน (คั่นหลายอีเมลด้วย ,)</label><input id="sEmail" placeholder="you@example.com"></div>
+            <label class="switch full"><input type="checkbox" id="sEmailOn"> เปิดส่งอีเมลแจ้งเตือน / รายงาน</label>
+            <div class="field"><label>ดึงข้อมูลย้อนหลัง (วัน)</label><input type="number" id="sLook" min="30"></div>
+            <div class="full"><button class="btn" type="submit">บันทึกการตั้งค่า</button></div>
+          </form>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h3>Automation</h3><p>ติดตั้ง Time-driven Trigger ใน Apps Script</p></div></div>
+          <p class="hint">• ตรวจสต็อก + ส่งอีเมลทุกวัน 08:00 น.<br>• สร้างรายงานประจำเดือนทุกวันที่ 1</p>
+          <button class="btn" id="btnTriggers">ติดตั้ง Trigger อัตโนมัติ</button>
+          <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+          <div class="card-h"><div><h3>ข้อมูลตัวอย่าง</h3><p>ล้างข้อมูลทั้งหมดและสร้างข้อมูลจำลอง 12 เดือน (30 SKU)</p></div></div>
+          <button class="btn red" id="btnSample">ล้าง & โหลดข้อมูลตัวอย่าง</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Product modal -->
+<div class="modal" id="pModal"><div class="box">
+  <h3 id="pModalTitle">เพิ่มสินค้า</h3>
+  <form id="pForm" class="form">
+    <div class="field"><label>SKU *</label><input id="fSku" required></div>
+    <div class="field"><label>ชื่อสินค้า *</label><input id="fName" required></div>
+    <div class="field"><label>หมวดหมู่</label><input id="fCat" list="catList"></div>
+    <div class="field"><label>หน่วย</label><input id="fUnit" value="ชิ้น"></div>
+    <div class="field"><label>ต้นทุน/หน่วย</label><input type="number" min="0" step="any" id="fCost" value="0"></div>
+    <div class="field"><label>ราคาขาย</label><input type="number" min="0" step="any" id="fPrice" value="0"></div>
+    <div class="field" id="fStockWrap"><label>สต็อกยกมา</label><input type="number" min="0" step="any" id="fStock" value="0"></div>
+    <div class="field"><label>จุดสั่งซื้อ (Reorder point)</label><input type="number" min="0" id="fRop" value="10"></div>
+    <div class="field"><label>สต็อกสูงสุด</label><input type="number" min="0" id="fMax" value="100"></div>
+    <div class="field"><label>Lead time (วัน)</label><input type="number" min="0" id="fLead" value="7"></div>
+    <div class="field full"><label>ผู้จำหน่าย</label><input id="fSupplier" list="supList"></div>
+  </form>
+  <datalist id="catList"></datalist><datalist id="supList"></datalist>
+  <div class="actions"><button type="button" class="btn ghost" data-close>ยกเลิก</button><button type="button" class="btn" id="pSave">บันทึก</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<div class="loading" id="loading"><div class="spinner"></div></div>
+
+<script>
+/* ================= Helpers ================= */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const DAY = 86400000;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const n0 = v => Number(v) || 0;
+const fmt = (v, d = 0) => n0(v).toLocaleString('th-TH', { minimumFractionDigits: d, maximumFractionDigits: d });
+const money = v => { v = n0(v); const a = Math.abs(v); return '฿' + (a >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : a >= 1e4 ? (v / 1e3).toFixed(1) + 'K' : fmt(v)); };
+const ymd = d => { d = new Date(d); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const thDate = d => new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+const thTime = d => { d = new Date(d); const diff = Date.now() - d; return diff < DAY && new Date().getDate() === d.getDate() ? d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : diff < 2 * DAY ? 'เมื่อวาน' : thDate(d); };
+const TH_MON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const CAT_ICON = { 'เครื่องเขียน':'📄','หมึกพิมพ์':'🖨️','บรรจุภัณฑ์':'📦','อุปกรณ์เซฟตี้':'⛑️','ทำความสะอาด':'🧴','ไอที':'💻','เฟอร์นิเจอร์':'🪑' };
+const icon = c => CAT_ICON[c] || '📦';
+const STATUS = { ok:{t:'ปกติ',c:'#16a34a',chip:'c-green'}, low:{t:'ใกล้หมด',c:'#f97316',chip:'c-orange'}, over:{t:'เกินสต็อก',c:'#f5b70a',chip:'c-purple'}, out:{t:'หมดสต็อก',c:'#ef4444',chip:'c-red'} };
+const statusOf = p => { const s = n0(p.stock); if (s <= 0) return 'out'; if (s <= n0(p.rop)) return 'low'; if (n0(p.max) > 0 && s > n0(p.max)) return 'over'; return 'ok'; };
+const netOf = t => t.type === 'OUT' ? -n0(t.qty) : n0(t.qty);
+
+function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : ''); clearTimeout(t._h); t._h = setTimeout(() => t.className = 'toast', 3200); }
+function busy(on) { $('#loading').classList.toggle('on', on); }
+
+/* ================= API (Apps Script or demo) ================= */
+const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
+function api(fn, ...args) {
+  return new Promise((res, rej) => {
+    if (IS_GAS) google.script.run.withSuccessHandler(res).withFailureHandler(e => rej(e && e.message ? e : new Error(String(e))))[fn](...args);
+    else setTimeout(() => { try { res(Mock[fn](...args)); } catch (e) { rej(e); } }, 120);
+  });
+}
+async function call(fn, args = [], okMsg) {
+  busy(true);
+  try {
+    let r = await api(fn, ...args);
+    if (r && r.data && r.data.products) { S.raw = r.data; if (r.url) window.open(r.url, '_blank'); }
+    else if (r && r.products) S.raw = r;
+    else if (typeof r === 'string') okMsg = r;
+    hydrate(); renderAll(); if (okMsg) toast(okMsg);
+    return r;
+  } catch (e) { toast(e.message || String(e), true); throw e; }
+  finally { busy(false); }
+}
+
+/* ---------- Demo backend (runs only outside Apps Script) ---------- */
+const Mock = (() => {
+  const PO_PENDING = 'รอรับ', PO_DONE = 'รับแล้ว';
+  const statusOf_ = statusOf;
+const SAMPLE_CATALOG = [
+  // sku, name, category, unit, cost, price, usage/day, rop, max, lead, supplier, flag
+  ['ST001', 'กระดาษ A4 80 แกรม', 'เครื่องเขียน', 'รีม', 115, 145, 4, 40, 250, 5, 'บจก. ออฟฟิศเมท', 'low'],
+  ['ST002', 'ปากกาลูกลื่น สีน้ำเงิน', 'เครื่องเขียน', 'ด้าม', 6, 10, 8, 100, 600, 4, 'บจก. ออฟฟิศเมท', ''],
+  ['ST003', 'แฟ้มเอกสาร 3 นิ้ว', 'เครื่องเขียน', 'เล่ม', 55, 79, 1.2, 20, 120, 7, 'บจก. ออฟฟิศเมท', ''],
+  ['ST004', 'กระดาษโน้ต 3x3', 'เครื่องเขียน', 'แพ็ค', 35, 49, 1.5, 25, 150, 5, 'บจก. ออฟฟิศเมท', ''],
+  ['ST005', 'ลวดเย็บกระดาษ No.10', 'เครื่องเขียน', 'กล่อง', 12, 18, 0.06, 10, 60, 7, 'บจก. ออฟฟิศเมท', 'slow'],
+  ['INK001', 'หมึก Canon PG-47', 'หมึกพิมพ์', 'ตลับ', 390, 490, 0.3, 6, 30, 7, 'หจก. พรินท์โปร', ''],
+  ['INK002', 'หมึกพิมพ์ HP 678', 'หมึกพิมพ์', 'ตลับ', 420, 520, 0.6, 30, 120, 7, 'หจก. พรินท์โปร', 'low'],
+  ['INK003', 'โทนเนอร์ Brother TN-2380', 'หมึกพิมพ์', 'ตลับ', 1450, 1890, 0.15, 4, 20, 10, 'หจก. พรินท์โปร', ''],
+  ['INK004', 'หมึก Epson 003', 'หมึกพิมพ์', 'ขวด', 180, 250, 0.6, 10, 60, 5, 'หจก. พรินท์โปร', ''],
+  ['PKG001', 'กล่องพัสดุ Size S', 'บรรจุภัณฑ์', 'ใบ', 4, 7, 25, 300, 2000, 3, 'บจก. แพ็คดี', ''],
+  ['PKG006', 'กล่องพัสดุ Size M', 'บรรจุภัณฑ์', 'ใบ', 6, 10, 18, 200, 1200, 3, 'บจก. แพ็คดี', 'over'],
+  ['PKG003', 'เทปแพ็คกล่อง ใส', 'บรรจุภัณฑ์', 'ม้วน', 28, 39, 3, 60, 300, 4, 'บจก. แพ็คดี', 'low'],
+  ['PKG004', 'บับเบิ้ลกันกระแทก', 'บรรจุภัณฑ์', 'ม้วน', 290, 390, 0.2, 3, 15, 7, 'บจก. แพ็คดี', ''],
+  ['PKG005', 'ถุงไปรษณีย์ 25x35', 'บรรจุภัณฑ์', 'แพ็ค', 45, 69, 1, 15, 100, 5, 'บจก. แพ็คดี', ''],
+  ['SAF001', 'แว่นตานิรภัย', 'อุปกรณ์เซฟตี้', 'ชิ้น', 85, 120, 0.2, 10, 50, 10, 'บจก. เซฟตี้เฟิร์ส', ''],
+  ['SAF002', 'หน้ากาก N95', 'อุปกรณ์เซฟตี้', 'กล่อง', 450, 590, 0.3, 5, 30, 7, 'บจก. เซฟตี้เฟิร์ส', ''],
+  ['SAF003', 'รองเท้าเซฟตี้', 'อุปกรณ์เซฟตี้', 'คู่', 690, 890, 0.03, 3, 15, 14, 'บจก. เซฟตี้เฟิร์ส', 'slow'],
+  ['SAF004', 'หมวกนิรภัย', 'อุปกรณ์เซฟตี้', 'ใบ', 120, 165, 0.6, 40, 150, 7, 'บจก. เซฟตี้เฟิร์ส', 'low'],
+  ['SAF007', 'ถุงมือเซฟตี้', 'อุปกรณ์เซฟตี้', 'คู่', 35, 49, 2, 30, 200, 5, 'บจก. เซฟตี้เฟิร์ส', 'low'],
+  ['CLN001', 'น้ำยาถูพื้น 3.8L', 'ทำความสะอาด', 'แกลลอน', 159, 199, 0.4, 6, 30, 5, 'บจก. คลีนพลัส', ''],
+  ['CLN002', 'กระดาษทิชชู่ม้วนใหญ่', 'ทำความสะอาด', 'แพ็ค', 210, 259, 1, 10, 60, 4, 'บจก. คลีนพลัส', ''],
+  ['CLN003', 'ถุงขยะดำ 30x40', 'ทำความสะอาด', 'แพ็ค', 55, 75, 1.5, 20, 120, 4, 'บจก. คลีนพลัส', 'over'],
+  ['CLN004', 'แอลกอฮอล์เจล 500ml', 'ทำความสะอาด', 'ขวด', 89, 120, 0.5, 10, 60, 5, 'บจก. คลีนพลัส', ''],
+  ['IT001', 'เมาส์ไร้สาย', 'ไอที', 'ชิ้น', 290, 390, 0.1, 5, 25, 7, 'บจก. ไอทีซัพพลาย', ''],
+  ['IT002', 'คีย์บอร์ด USB', 'ไอที', 'ชิ้น', 350, 450, 0.03, 3, 15, 7, 'บจก. ไอทีซัพพลาย', 'slow'],
+  ['IT003', 'สาย HDMI 2 ม.', 'ไอที', 'เส้น', 150, 220, 0.05, 5, 30, 7, 'บจก. ไอทีซัพพลาย', 'slow'],
+  ['IT004', 'แฟลชไดรฟ์ 64GB', 'ไอที', 'ชิ้น', 190, 259, 0.15, 5, 40, 7, 'บจก. ไอทีซัพพลาย', 'out'],
+  ['IT005', 'จอมอนิเตอร์ 24 นิ้ว', 'ไอที', 'เครื่อง', 3900, 4590, 0.02, 2, 8, 14, 'บจก. ไอทีซัพพลาย', 'over'],
+  ['FUR001', 'เก้าอี้สำนักงาน', 'เฟอร์นิเจอร์', 'ตัว', 2490, 3290, 0.01, 2, 10, 14, 'บจก. ออฟฟิศเฟอร์นิช', 'slow'],
+  ['FUR002', 'ชั้นวางเหล็ก 5 ชั้น', 'เฟอร์นิเจอร์', 'ชุด', 1890, 2490, 0.01, 1, 6, 14, 'บจก. ออฟฟิศเฟอร์นิช', 'slow']
+];
+
+/** จำลองการเคลื่อนไหวสต็อก 365 วัน (อัลกอริทึมเดียวกับโหมดตัวอย่างใน Index.html) */
+function buildSample_() {
+  let seed = 20241231;
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const DAYS = 365, DAY = 86400000;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const start = today.getTime() - (DAYS - 1) * DAY;
+  const at = (d) => new Date(start + d * DAY + (8 + Math.floor(rnd() * 9)) * 3600000 + Math.floor(rnd() * 60) * 60000);
+  const txns = []; let seq = 1;
+  const add = (date, type, p, qty, ref, note) => txns.push({ date: date, id: 'TX' + ('00000' + (seq++)).slice(-6), type: type, sku: p.sku, qty: qty, cost: p.cost, ref: ref || '', note: note || '', user: 'sample' });
+
+  const products = SAMPLE_CATALOG.map(c => ({
+    sku: c[0], name: c[1], category: c[2], unit: c[3], cost: c[4], price: c[5], rate: c[6], rop: c[7], max: c[8], lead: c[9], supplier: c[10], flag: c[11],
+    stock: 0, lastReceived: null, pending: null
+  }));
+
+  products.forEach(p => {
+    p.stock = Math.round(p.max * (p.flag === 'slow' ? 0.5 : 0.6));
+    const back = p.flag === 'slow' ? 200 + Math.floor(rnd() * 150) : Math.floor(rnd() * 40);
+    p.lastReceived = new Date(start - back * DAY);
+    add(p.lastReceived, 'IN', p, p.stock, 'OPENING', 'ยอดยกมา');
+  });
+
+  for (let d = 0; d < DAYS; d++) {
+    const dow = new Date(start + d * DAY).getDay();
+    const wk = (dow === 0 || dow === 6) ? 0.35 : 1;
+    const season = 1 + 0.25 * Math.sin((d / DAYS) * Math.PI * 2);
+    products.forEach(p => {
+      if (p.pending && p.pending.day === d) {
+        const dt = at(d); p.stock += p.pending.qty; p.lastReceived = dt;
+        add(dt, 'IN', p, p.pending.qty, p.pending.ref, 'รับตามใบสั่งซื้อ'); p.pending = null;
+      }
+      const batch = Math.max(1, Math.round(p.rate * 3));
+      const prob = Math.min(0.95, p.rate * wk * season / batch);
+      if (rnd() < prob && p.stock > 0) {
+        const q = Math.min(p.stock, Math.max(1, Math.round(batch * (0.5 + rnd()))));
+        p.stock -= q; add(at(d), 'OUT', p, q, '', 'เบิกใช้งาน');
+      }
+      if (!p.pending && p.flag !== 'slow' && p.stock <= p.rop) {
+        p.pending = { day: d + p.lead, qty: Math.max(1, p.max - p.stock), ref: 'PO-' + new Date(start + d * DAY).getFullYear() + '-' + ('000' + (seq % 9000)).slice(-4) };
+      }
+    });
+  }
+
+  const last = DAYS - 1;
+  products.forEach(p => {
+    if (p.flag === 'over') { const q = Math.round(p.max * 0.9); const dt = at(last - 3); p.stock += q; p.lastReceived = dt; add(dt, 'IN', p, q, 'PO-PROMO', 'ซื้อโปรโมชั่นล็อตใหญ่'); }
+    if (p.flag === 'low') { p.pending = null; const target = Math.max(1, Math.round(p.rop * 0.3)); if (p.stock > target) { add(at(last), 'OUT', p, p.stock - target, '', 'เบิกใช้งาน'); p.stock = target; } }
+    if (p.flag === 'out') { p.pending = null; if (p.stock > 0) { add(at(last), 'OUT', p, p.stock, '', 'เบิกใช้งาน'); p.stock = 0; } }
+  });
+
+  txns.sort((a, b) => a.date - b.date);
+  const now = new Date();
+  const pos = [];
+  const pk = products.find(p => p.sku === 'PKG003');
+  if (pk) pos.push({ id: 'PO-' + now.getFullYear() + '-0001', date: new Date(now.getTime() - 2 * 3600000), sku: pk.sku, name: pk.name, qty: 250, cost: pk.cost, supplier: pk.supplier, status: PO_PENDING, receivedAt: '' });
+
+  const alerts = [];
+  products.forEach(p => {
+    const st = statusOf_(p);
+    if (st === 'low') alerts.push({ time: new Date(now.getTime() - rnd() * 8 * 3600000), type: 'LOW', sku: p.sku, message: p.name + ' (' + p.sku + ') เหลือ ' + p.stock + ' ' + p.unit });
+    if (st === 'out') alerts.push({ time: new Date(now.getTime() - rnd() * 8 * 3600000), type: 'OUT', sku: p.sku, message: p.name + ' (' + p.sku + ') หมดสต็อก' });
+    if (st === 'over') alerts.push({ time: new Date(now.getTime() - rnd() * 8 * 3600000), type: 'OVER', sku: p.sku, message: p.name + ' (' + p.sku + ') เกิน ' + p.max + ' ' + p.unit });
+  });
+  alerts.push({ time: new Date(now.getTime() - 26 * 3600000), type: 'REPORT', sku: '', message: 'รายงานรายเดือนพร้อมใช้งาน: สรุปสต็อกประจำเดือน' });
+  alerts.sort((a, b) => a.time - b.time);
+
+  return {
+    products: products.map(p => ({ sku: p.sku, name: p.name, category: p.category, unit: p.unit, cost: p.cost, price: p.price, stock: p.stock, rop: p.rop, max: p.max, lead: p.lead, supplier: p.supplier, lastReceived: p.lastReceived, updated: now })),
+    txns: txns, pos: pos, alerts: alerts
+  };
+}
+
+  const iso = o => { const r = {}; for (const k in o) r[k] = o[k] instanceof Date ? o[k].toISOString() : o[k]; return r; };
+  let db = null, seq = 1;
+  const settings = { companyName: 'บริษัท ตัวอย่าง จำกัด', alertEmail: '', emailAlerts: 'false', lookbackDays: '400' };
+  function load() { const s = buildSample_(); db = { products: s.products.map(iso), txns: s.txns.map(iso), pos: s.pos.map(iso), alerts: s.alerts.map(iso) }; }
+  const out = () => { if (!db) load(); return JSON.parse(JSON.stringify({ products: db.products, txns: db.txns, alerts: db.alerts.slice(-100), pos: db.pos, settings, user: 'demo@example.com', ssUrl: '', serverTime: new Date().toISOString() })); };
+  const alert = (type, sku, message) => db.alerts.push({ time: new Date().toISOString(), type, sku, message });
+  function logStatusAlert(p, before, after) {
+    if (after === before) return;
+    if (after === 'low') alert('LOW', p.sku, `${p.name} (${p.sku}) เหลือ ${p.stock} ${p.unit} ต่ำกว่าจุดสั่งซื้อ`);
+    if (after === 'out') alert('OUT', p.sku, `${p.name} (${p.sku}) หมดสต็อก`);
+    if (after === 'over') alert('OVER', p.sku, `${p.name} (${p.sku}) เกินสต็อกสูงสุด (${p.stock}/${p.max})`);
+  }
+  function nextPoId(pos, year) {
+    const prefix = 'PO-' + year + '-';
+    let maxNum = 0;
+    pos.forEach(p => {
+      const id = String(p.id || '');
+      if (id.indexOf(prefix) === 0) {
+        const n = parseInt(id.slice(prefix.length), 10);
+        if (n > maxNum) maxNum = n;
+      }
+    });
+    return prefix + String(maxNum + 1).padStart(4, '0');
+  }
+  function apply(t) {
+    const p = db.products.find(x => x.sku === t.sku); if (!p) throw new Error('ไม่พบ SKU ' + t.sku);
+    const qty = n0(t.qty), type = t.type; const before = statusOf(p);
+    if (type !== 'ADJ' && qty <= 0) throw new Error('จำนวนต้องมากกว่า 0');
+    if (type === 'ADJ' && qty === 0) throw new Error('จำนวนปรับปรุงต้องไม่เป็น 0');
+    const inCost = t.cost !== '' && t.cost != null ? Math.max(0, n0(t.cost)) : p.cost;
+    if (type === 'IN') {
+      const baseStock = Math.max(0, p.stock);
+      if (baseStock + qty > 0 && inCost >= 0) p.cost = Math.round(((baseStock * p.cost + qty * inCost) / (baseStock + qty)) * 100) / 100;
+      p.stock += qty;
+    }
+    else if (type === 'OUT') { if (qty > p.stock) throw new Error('สต็อก ' + p.sku + ' ไม่พอ (คงเหลือ ' + p.stock + ')'); p.stock -= qty; }
+    else { if (p.stock + qty < 0) throw new Error('ปรับปรุงแล้วสต็อกติดลบ'); p.stock += qty; }
+    const now = new Date();
+    let when = now;
+    if (t.date) {
+      const parsed = new Date(t.date + 'T' + now.toTimeString().slice(0, 8));
+      if (!isNaN(parsed.getTime())) when = parsed;
+    }
+    if (type === 'IN' || (!p.lastReceived && p.stock > 0)) {
+      const prevRec = p.lastReceived ? new Date(p.lastReceived).getTime() : 0;
+      if (!prevRec || when.getTime() >= prevRec) p.lastReceived = when.toISOString();
+    }
+    p.updated = now.toISOString();
+    db.txns.push({ date: when.toISOString(), id: 'TXD' + (seq++), type, sku: p.sku, qty, cost: type === 'IN' ? inCost : p.cost, ref: t.ref || '', note: t.note || '', user: 'demo' });
+    db.txns.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const after = statusOf(p);
+    logStatusAlert(p, before, after);
+  }
+  return {
+    getInitData: out,
+    setupWithSample() { load(); return out(); },
+    saveProduct(p, isNew) {
+      out(); const sku = String(p.sku || '').trim().toUpperCase(); if (!sku) throw new Error('กรุณาระบุ SKU'); if (!String(p.name || '').trim()) throw new Error('กรุณาระบุชื่อสินค้า');
+      const ex = db.products.find(x => x.sku === sku);
+      if (isNew && ex) throw new Error('SKU ' + sku + ' มีอยู่แล้ว');
+      if (!isNew && !ex) throw new Error('ไม่พบ SKU ' + sku);
+      const before = ex ? statusOf(ex) : null;
+      const leadVal = p.lead !== '' && p.lead != null && isFinite(Number(p.lead)) ? Math.max(0, n0(p.lead)) : 7;
+      const initStock = Math.max(0, n0(p.stock));
+      const rec = { sku, name: p.name.trim(), category: p.category || 'ทั่วไป', unit: p.unit || 'ชิ้น', cost: Math.max(0, n0(p.cost)), price: Math.max(0, n0(p.price)), stock: ex ? ex.stock : initStock, rop: Math.max(0, n0(p.rop)), max: Math.max(0, n0(p.max)), lead: leadVal, supplier: p.supplier || '', lastReceived: ex ? ex.lastReceived : (initStock > 0 ? new Date().toISOString() : ''), updated: new Date().toISOString() };
+      const after = statusOf(rec);
+      if (ex) { Object.assign(ex, rec); logStatusAlert(ex, before, after); }
+      else { db.products.push(rec); if (rec.stock > 0) db.txns.push({ date: new Date().toISOString(), id: 'TXD' + (seq++), type: 'IN', sku, qty: rec.stock, cost: rec.cost, ref: 'OPENING', note: 'ยอดยกมา', user: 'demo' }); alert('UPDATE', sku, `เพิ่มสินค้าใหม่ ${rec.name} (${sku})`); if (after !== 'ok') logStatusAlert(rec, 'ok', after); }
+      return out();
+    },
+    deleteProduct(sku) {
+      out();
+      if (!db.products.some(p => p.sku === sku)) throw new Error('ไม่พบ SKU ' + sku);
+      db.products = db.products.filter(p => p.sku !== sku);
+      db.pos = db.pos.filter(po => !(po.sku === sku && po.status === PO_PENDING));
+      alert('UPDATE', sku, 'ลบสินค้า ' + sku);
+      return out();
+    },
+    recordTransaction(t) { out(); apply(t); return out(); },
+    createPurchaseOrder(items) {
+      out(); if (!items || !items.length) throw new Error('ยังไม่ได้เลือกสินค้า');
+      const y = new Date().getFullYear();
+      const id = nextPoId(db.pos, y);
+      let count = 0;
+      items.forEach(i => { const p = db.products.find(x => x.sku === i.sku); if (p && n0(i.qty) > 0) { db.pos.push({ id, date: new Date().toISOString(), sku: p.sku, name: p.name, qty: n0(i.qty), cost: p.cost, supplier: p.supplier, status: PO_PENDING, receivedAt: '' }); count++; } });
+      if (!count) throw new Error('จำนวนสั่งซื้อไม่ถูกต้อง');
+      alert('REORDER', '', `สร้างใบสั่งซื้อ ${id} (${count} รายการ)`); return out();
+    },
+    receivePurchaseOrder(id) {
+      out(); const lines = db.pos.filter(p => p.id === id && p.status === PO_PENDING); if (!lines.length) throw new Error('ใบสั่งซื้อนี้รับครบแล้ว');
+      lines.forEach(l => {
+        if (db.products.some(x => x.sku === l.sku)) {
+          apply({ type: 'IN', sku: l.sku, qty: l.qty, cost: l.cost, ref: id, note: 'รับตามใบสั่งซื้อ' });
+        }
+        l.status = PO_DONE; l.receivedAt = new Date().toISOString();
+      });
+      alert('UPDATE', '', `รับสินค้าเข้า ${id} เรียบร้อย (${lines.length} รายการ)`); return out();
+    },
+    saveSettings(s) { Object.assign(settings, s); return out(); },
+    checkStockAlerts() { out(); const l = db.products.filter(p => ['low', 'out'].includes(statusOf(p))).length, o = db.products.filter(p => statusOf(p) === 'over').length; alert('CHECK', '', `ตรวจสต็อก: ต่ำกว่าเกณฑ์ ${l} รายการ, ล้นสต็อก ${o} รายการ (โหมดตัวอย่าง: ไม่ส่งอีเมล)`); return out(); },
+    generateMonthlyReport() { out(); alert('REPORT', '', 'รายงานรายเดือนพร้อมใช้งาน (โหมดตัวอย่าง: ไม่สร้างชีตจริง)'); return { data: out(), url: null }; },
+    installTriggers() { return 'โหมดตัวอย่าง: ติดตั้ง Trigger ได้เมื่อรันบน Apps Script'; }
+  };
+})();
+
+/* ================= State ================= */
+const S = { raw: null, page: 'dashboard', charts: {}, txType: 'IN', planQty: {}, planSel: {} };
+
+function hydrate() {
+  const r = S.raw;
+  r.products.forEach(p => ['cost','price','stock','rop','max','lead'].forEach(k => p[k] = n0(p[k])));
+  r.txns.forEach(t => { t.qty = n0(t.qty); t.cost = n0(t.cost); t.ts = new Date(t.date).getTime(); });
+  r.txns.sort((a, b) => a.ts - b.ts);
+  S.pmap = {}; r.products.forEach(p => S.pmap[p.sku] = p);
+  // last IN per sku
+  const lastIn = {}; r.txns.forEach(t => { if (t.type === 'IN') lastIn[t.sku] = t.ts; });
+  const now = Date.now();
+  r.products.forEach(p => {
+    const li = lastIn[p.sku] || (p.lastReceived ? new Date(p.lastReceived).getTime() : now);
+    p.age = Math.max(0, Math.floor((now - li) / DAY));
+    p.status = statusOf(p);
+    p.value = p.stock * p.cost;
+  });
+  const out90 = {}; const since = now - 90 * DAY;
+  r.txns.forEach(t => { if (t.type === 'OUT' && t.ts >= since) out90[t.sku] = (out90[t.sku] || 0) + t.qty; });
+  r.products.forEach(p => { p.out90 = out90[p.sku] || 0; p.daily = p.out90 / 90; p.cover = p.daily > 0 ? p.stock / p.daily : Infinity; });
+  const pending = {}; r.pos.forEach(po => { if (po.status === 'รอรับ') pending[po.sku] = (pending[po.sku] || 0) + n0(po.qty); });
+  r.products.forEach(p => p.pending = pending[p.sku] || 0);
+}
+
+function stockAt(ts) {
+  const m = {}; S.raw.products.forEach(p => m[p.sku] = p.stock);
+  for (let i = S.raw.txns.length - 1; i >= 0; i--) { const t = S.raw.txns[i]; if (t.ts <= ts) break; if (m[t.sku] != null) m[t.sku] -= netOf(t); }
+  return m;
+}
+const valueOfMap = m => S.raw.products.reduce((s, p) => s + Math.max(0, m[p.sku]) * p.cost, 0);
+
+function getRange() {
+  const today = new Date();
+  let from = new Date($('#dFrom').value + 'T00:00:00').getTime();
+  let to = new Date($('#dTo').value + 'T23:59:59').getTime();
+  if (isNaN(to)) to = new Date(ymd(today) + 'T23:59:59').getTime();
+  if (isNaN(from)) from = to - 30 * DAY;
+  if (from > to) { const tmp = from; from = to - DAY + 1000; to = tmp; }
+  return { from, to, days: Math.max(1, Math.round((to - from) / DAY)) };
+}
+function setPreset(v) {
+  const today = new Date(); let from;
+  if (v === 'custom') return;
+  if (v === 'ytd') from = new Date(today.getFullYear(), 0, 1);
+  else if (v === '365') from = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+  else from = new Date(today.getTime() - (n0(v) - 1) * DAY);
+  $('#dFrom').value = ymd(from); $('#dTo').value = ymd(today);
+}
+
+/* ================= Analytics ================= */
+function analyze() {
+  const { from, to, days } = getRange();
+  const P = S.raw.products, T = S.raw.txns.filter(t => t.ts >= from && t.ts <= to);
+  const usage = {}, usageQty = {};
+  T.forEach(t => { if (t.type === 'OUT') { usage[t.sku] = (usage[t.sku] || 0) + t.qty * t.cost; usageQty[t.sku] = (usageQty[t.sku] || 0) + t.qty; } });
+  // ABC
+  let basis = 'usage'; let total = Object.values(usage).reduce((a, b) => a + b, 0);
+  if (total <= 0) { basis = 'stock'; P.forEach(p => usage[p.sku] = p.value); total = P.reduce((s, p) => s + p.value, 0); }
+  const sorted = P.slice().sort((a, b) => (usage[b.sku] || 0) - (usage[a.sku] || 0));
+  let cum = 0; const abc = sorted.map(p => { const v = usage[p.sku] || 0; const prev = total ? cum / total : 1; cum += v; const g = v <= 0 ? 'C' : prev < 0.8 ? 'A' : prev < 0.95 ? 'B' : 'C'; return { p, v, q: usageQty[p.sku] || 0, cumPct: total ? cum / total : 0, g }; });
+  const groups = { A: { n: 0, v: 0 }, B: { n: 0, v: 0 }, C: { n: 0, v: 0 } }; abc.forEach(r => { groups[r.g].n++; groups[r.g].v += r.v; });
+  // turnover monthly
+  const months = []; let d = new Date(new Date(from).getFullYear(), new Date(from).getMonth(), 1);
+  while (d.getTime() <= to) { const ms = Math.max(d.getTime(), from); const nx = new Date(d.getFullYear(), d.getMonth() + 1, 1); const me = Math.min(nx.getTime() - 1, to, Date.now()); if (me > ms) months.push({ d: new Date(d), ms, me }); d = nx; }
+  let cogsAll = 0, invSum = 0;
+  months.forEach(m => {
+    const cogs = S.raw.txns.reduce((s, t) => s + (t.type === 'OUT' && t.ts >= m.ms && t.ts <= m.me ? t.qty * t.cost : 0), 0);
+    const inv = (valueOfMap(stockAt(m.ms)) + valueOfMap(stockAt(m.me))) / 2;
+    const md = Math.max(1, (m.me - m.ms) / DAY);
+    m.cogs = cogs; m.inv = inv; m.turn = inv > 0 ? cogs / inv * 365 / md : 0;
+    m.inVal = S.raw.txns.reduce((s, t) => s + (t.type === 'IN' && t.ts >= m.ms && t.ts <= m.me ? t.qty * t.cost : 0), 0);
+    cogsAll += cogs; invSum += inv;
+  });
+  const avgInv = months.length ? invSum / months.length : 0;
+  const turnover = avgInv > 0 ? cogsAll / avgInv * 365 / days : 0;
+  let t1 = 0, t2 = 0;
+  if (months.length >= 2) {
+    const half = Math.floor(months.length / 2);
+    const tr = arr => { const c = arr.reduce((s, m) => s + m.cogs, 0), i = arr.reduce((s, m) => s + m.inv, 0) / (arr.length || 1), dd = arr.reduce((s, m) => s + (m.me - m.ms) / DAY, 0); return i > 0 && dd > 0 ? c / i * 365 / dd : 0; };
+    t1 = tr(months.slice(0, half)); t2 = tr(months.slice(half));
+  } else {
+    const endTs = Math.min(to, Date.now());
+    const mid = from + (endTs - from) / 2;
+    const spanTurn = (sTs, eTs) => {
+      const dd = Math.max(1, (eTs - sTs) / DAY);
+      const c = S.raw.txns.reduce((s, t) => s + (t.type === 'OUT' && t.ts >= sTs && t.ts <= eTs ? t.qty * t.cost : 0), 0);
+      const inv = (valueOfMap(stockAt(sTs)) + valueOfMap(stockAt(eTs))) / 2;
+      return inv > 0 ? c / inv * 365 / dd : 0;
+    };
+    if (endTs > from) { t1 = spanTurn(from, mid); t2 = spanTurn(mid, endTs); }
+  }
+  // aging
+  const buckets = [[0, 30, '0-30'], [31, 60, '31-60'], [61, 90, '61-90'], [91, 180, '91-180'], [181, 1e9, '>180']].map(b => ({ lbl: b[2], lo: b[0], hi: b[1], n: 0, v: 0 }));
+  P.filter(p => p.stock > 0).forEach(p => { const b = buckets.find(b => p.age >= b.lo && p.age <= b.hi); b.n++; b.v += p.value; });
+  // KPI comparison vs 30 days ago
+  const prevMap = stockAt(Date.now() - 30 * DAY);
+  const prevP = P.map(p => Object.assign({}, p, { stock: prevMap[p.sku] }));
+  const cnt = (arr, sts) => arr.filter(p => sts.includes(statusOf(p))).length;
+  const pct = (a, b) => b ? (a - b) / Math.abs(b) * 100 : (a ? 100 : 0);
+  const units = P.reduce((s, p) => s + p.stock, 0), prevUnits = prevP.reduce((s, p) => s + Math.max(0, p.stock), 0);
+  const value = P.reduce((s, p) => s + p.value, 0), prevValue = valueOfMap(prevMap);
+  const low = cnt(P, ['low', 'out']), prevLow = cnt(prevP, ['low', 'out']);
+  const over = cnt(P, ['over']), prevOver = cnt(prevP, ['over']);
+  return {
+    range: { from, to, days }, abc, groups, total, basis, months, turnover, tChange: pct(t2, t1), buckets,
+    kpi: { sku: P.length, units, unitsChg: pct(units, prevUnits), value, valueChg: pct(value, prevValue), low, lowChg: pct(low, prevLow), over, overChg: pct(over, prevOver) },
+    status: ['ok', 'low', 'over', 'out'].map(k => ({ k, n: P.filter(p => p.status === k).length })),
+    usageQty
+  };
+}
+function reorderList() {
+  return S.raw.products.filter(p => p.stock <= p.rop).map(p => {
+    const target = p.max > 0 ? p.max : Math.max(p.rop * 2, 10);
+    const need = Math.max(0, target - p.stock - p.pending);
+    return Object.assign({}, p, { suggest: need });
+  }).sort((a, b) => (a.stock / (a.rop || 1)) - (b.stock / (b.rop || 1)));
+}
+
+/* ================= Charts ================= */
+Chart.defaults.font.family = "'Noto Sans Thai', system-ui, sans-serif";
+Chart.defaults.color = '#64748b';
+function chart(id, cfg) { if (S.charts[id]) S.charts[id].destroy(); S.charts[id] = new Chart(document.getElementById(id), cfg); }
+const gridOpt = { color: '#eef1f6' };
+const valueLabels = { id: 'vl', afterDatasetsDraw(c) { const ctx = c.ctx; c.data.datasets.forEach((ds, i) => { if (ds.type === 'line' || c.config.type !== 'bar') return; c.getDatasetMeta(i).data.forEach((b, j) => { ctx.save(); ctx.fillStyle = '#0f172a'; ctx.font = '600 12px Noto Sans Thai'; ctx.textAlign = 'center'; ctx.fillText(fmt(ds.data[j]), b.x, b.y - 6); ctx.restore(); }); }); } };
+
+/* ================= Render ================= */
+function changeHtml(v, goodUp = true) {
+  const up = v >= 0; const good = up === goodUp;
+  return `<div class="chg ${good ? 'up' : 'down'}">${up ? '↑' : '↓'} ${up ? '+' : ''}${v.toFixed(0)}%<small>เทียบ 30 วันก่อน</small></div>`;
+}
+function renderDashboard(A) {
+  const k = A.kpi;
+  $('#kpis').innerHTML = `
+  <div class="card kpi"><div class="ic" style="background:var(--blue-soft)"><svg viewBox="0 0 24 24" fill="#2563eb"><path d="M12 2 3 7l9 5 9-5zM3 8.5v8.5l8 4.5v-8.5zm10 4.5v8.5l8-4.5V8.5z"/></svg></div><div><div class="lbl">จำนวนสินค้า</div><div class="val">${fmt(k.sku)}</div><div class="unit">SKU · ${fmt(k.units)} หน่วย</div>${changeHtml(k.unitsChg)}</div></div>
+  <div class="card kpi"><div class="ic" style="background:var(--green-soft)"><svg viewBox="0 0 24 24" fill="#16a34a"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 8v3c0 1.7 3.6 3 8 3s8-1.3 8-3V8c0 1.7-3.6 3-8 3S4 9.7 4 8m0 6v3c0 1.7 3.6 3 8 3s8-1.3 8-3v-3c0 1.7-3.6 3-8 3s-8-1.3-8-3"/></svg></div><div><div class="lbl">มูลค่าสินค้าคลัง</div><div class="val">${money(k.value)}</div><div class="unit">บาท (ตามต้นทุน)</div>${changeHtml(k.valueChg)}</div></div>
+  <div class="card kpi k-red"><div class="ic" style="background:var(--red-soft)"><svg viewBox="0 0 24 24" fill="#ef4444"><path d="M12 2 1 21h22zm-1 7h2v6h-2zm0 8h2v2h-2z"/></svg></div><div><div class="lbl">สินค้าต่ำกว่าเกณฑ์</div><div class="val">${fmt(k.low)}</div><div class="unit">รายการ (รวมหมดสต็อก)</div>${changeHtml(k.lowChg, false)}</div></div>
+  <div class="card kpi k-purple"><div class="ic" style="background:var(--purple-soft)"><svg viewBox="0 0 24 24" fill="#8b5cf6"><path d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4m10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4M1 2h3.3l.9 2H21l-3.6 8.5H8.1L7 15h12v2H4l2.2-4.5L3 4H1z"/></svg></div><div><div class="lbl">สินค้าล้นสต็อก</div><div class="val">${fmt(k.over)}</div><div class="unit">รายการ</div>${changeHtml(k.overChg, false)}</div></div>`;
+
+  chart('cAging', { type: 'bar', data: { labels: A.buckets.map(b => [b.lbl, 'วัน']), datasets: [{ data: A.buckets.map(b => b.n), backgroundColor: ['#2f80ed', '#22c55e', '#facc15', '#fb923c', '#ef4444'], borderRadius: 6, maxBarThickness: 46 }] },
+    options: { maintainAspectRatio: false, layout: { padding: { top: 20 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw} รายการ · ${money(A.buckets[c.dataIndex].v)}` } } }, scales: { y: { beginAtZero: true, grid: gridOpt, ticks: { precision: 0 } }, x: { grid: { display: false } } } }, plugins: [valueLabels] });
+
+  const tc = A.tChange;
+  $('#turnBadge').innerHTML = `${A.turnover.toFixed(1)} เท่า<small class="${tc >= 0 ? 'up' : 'down'}">(${tc >= 0 ? '+' : ''}${tc.toFixed(0)}% ครึ่งหลัง)</small>`;
+  chart('cTurn', { type: 'line', data: { labels: A.months.map(m => TH_MON[m.d.getMonth()]), datasets: [{ data: A.months.map(m => +m.turn.toFixed(2)), borderColor: '#1f6feb', backgroundColor: 'rgba(31,111,235,.10)', fill: true, tension: .35, pointRadius: 4, pointBackgroundColor: '#1f6feb', pointBorderColor: '#fff', pointBorderWidth: 2 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${c.raw} เท่า/ปี · เบิก ${money(A.months[c.dataIndex].cogs)}` } } }, scales: { y: { beginAtZero: true, grid: gridOpt }, x: { grid: { display: false } } } } });
+
+  const tot = S.raw.products.length;
+  $('#statusTotal').textContent = fmt(tot);
+  chart('cStatus', { type: 'doughnut', data: { labels: A.status.map(s => STATUS[s.k].t), datasets: [{ data: A.status.map(s => s.n), backgroundColor: A.status.map(s => STATUS[s.k].c), borderWidth: 3, borderColor: '#fff' }] }, options: { maintainAspectRatio: false, cutout: '64%', plugins: { legend: { display: false } } } });
+  $('#statusLegend').innerHTML = A.status.map(s => `<li><span class="dot" style="background:${STATUS[s.k].c}"></span><div>${STATUS[s.k].t}<small>${fmt(s.n)} รายการ</small></div><b>${tot ? Math.round(s.n / tot * 100) : 0}%</b></li>`).join('');
+
+  const G = A.groups, meta = { A: ['สินค้าสำคัญ', 'High Value', '#ef4444', '#fff1f1'], B: ['สินค้ารอง', 'Medium Value', '#2563eb', '#eef4ff'], C: ['สินค้าทั่วไป', 'Low Value', '#16a34a', '#ecfaf1'] };
+  $('#abcBox').innerHTML = ['A', 'B', 'C'].map(g => `<div class="abc-row" style="background:${meta[g][3]}"><div class="tag" style="background:${meta[g][2]}">${g}</div><div><b>${meta[g][0]}</b><small>${meta[g][1]}</small></div><div class="n">${fmt(G[g].n)} <small>รายการ (${tot ? Math.round(G[g].n / tot * 100) : 0}%)</small></div><div class="n val-col">${money(G[g].v)} <small>(${A.total ? Math.round(G[g].v / A.total * 100) : 0}%)</small></div></div>`).join('') +
+    `<div class="hint">${A.basis === 'usage' ? 'คิดจากมูลค่าเบิกใช้ในช่วงที่เลือก' : 'ยังไม่มีการเบิก — คิดจากมูลค่าคงคลัง'}</div>`;
+
+  const ro = reorderList().slice(0, 5);
+  $('#reorderMini').innerHTML = ro.length ? ro.map(p => `<tr><td><div class="prod"><div class="pi">${icon(p.category)}</div><div><b>${esc(p.name)}</b><small>SKU: ${esc(p.sku)}</small></div></div></td><td class="num"><span class="chip ${p.stock <= 0 ? 'c-red' : 'c-orange'}">${fmt(p.stock)}</span></td><td class="num">${fmt(p.rop)}</td><td class="num"><span class="chip c-green">${p.suggest ? fmt(p.suggest) : 'ค้างรับ'}</span></td></tr>`).join('') : `<tr><td colspan="4" class="empty">🎉 ไม่มีสินค้าต่ำกว่าเกณฑ์</td></tr>`;
+  $('#alertsMini').innerHTML = alertsHtml(5);
+}
+const ALERT_META = { LOW: ['⚠️', 'var(--red-soft)', 'สินค้าต่ำกว่าเกณฑ์', '#dc2626'], OUT: ['⛔', 'var(--red-soft)', 'สินค้าหมดสต็อก', '#dc2626'], OVER: ['📦', 'var(--orange-soft)', 'สินค้าล้นสต็อก', '#ea580c'], REORDER: ['🚚', 'var(--blue-soft)', 'แนะนำสั่งซื้อ / PO', '#1d4ed8'], UPDATE: ['✅', 'var(--green-soft)', 'อัปเดตข้อมูล', '#15803d'], REPORT: ['📄', 'var(--purple-soft)', 'รายงานพร้อมใช้งาน', '#6d28d9'], CHECK: ['🔎', 'var(--blue-soft)', 'ตรวจสต็อกอัตโนมัติ', '#1d4ed8'] };
+function alertsHtml(limit) {
+  const list = S.raw.alerts.slice().sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, limit);
+  if (!list.length) return '<div class="empty">ยังไม่มีการแจ้งเตือน</div>';
+  return list.map(a => { const m = ALERT_META[a.type] || ALERT_META.UPDATE; return `<div class="alert"><div class="ai" style="background:${m[1]}">${m[0]}</div><div><b style="color:${m[3]}">${m[2]}</b><span>${esc(a.message)}</span></div><time>${thTime(a.time)}</time></div>`; }).join('');
+}
+
+function renderProducts() {
+  const q = ($('#pSearch').value || '').toLowerCase(), c = $('#pCat').value, st = $('#pStatus').value;
+  const list = S.raw.products.filter(p => (!q || (p.sku + ' ' + p.name + ' ' + p.category).toLowerCase().includes(q)) && (!c || p.category === c) && (!st || (st === 'alert' ? (p.status === 'low' || p.status === 'out') : p.status === st)));
+  $('#productRows').innerHTML = list.length ? list.map(p => `<tr>
+    <td><div class="prod"><div class="pi">${icon(p.category)}</div><div><b>${esc(p.name)}</b><small>${esc(p.sku)} · ${esc(p.unit)}</small></div></div></td>
+    <td>${esc(p.category)}</td><td class="num"><b>${fmt(p.stock)}</b></td><td><span class="chip ${STATUS[p.status].chip}">${STATUS[p.status].t}</span></td>
+    <td class="num">${fmt(p.rop)}</td><td class="num">${fmt(p.max)}</td><td class="num">${fmt(p.cost, 2)}</td><td class="num">${fmt(p.value)}</td><td class="num">${p.stock > 0 ? p.age : '-'}</td>
+    <td style="white-space:nowrap"><button class="btn sm green" data-tx="IN" data-sku="${esc(p.sku)}">รับ</button> <button class="btn sm orange" data-tx="OUT" data-sku="${esc(p.sku)}">เบิก</button> <button class="btn sm ghost" data-edit="${esc(p.sku)}">แก้ไข</button> <button class="btn sm ghost" data-del="${esc(p.sku)}" style="color:#dc2626">ลบ</button></td></tr>`).join('') : `<tr><td colspan="10" class="empty">ไม่พบสินค้า — กด "＋ เพิ่มสินค้า" หรือโหลดข้อมูลตัวอย่างในหน้า Settings</td></tr>`;
+  $('#productCount').textContent = `แสดง ${list.length} จาก ${S.raw.products.length} รายการ · มูลค่ารวม ${money(list.reduce((s, p) => s + p.value, 0))}`;
+}
+
+function renderTxForm() {
+  const sel = $('#txSku'), cur = sel.value;
+  sel.innerHTML = S.raw.products.map(p => `<option value="${esc(p.sku)}">${esc(p.sku)} — ${esc(p.name)} (คงเหลือ ${fmt(p.stock)})</option>`).join('');
+  if (cur && S.pmap[cur]) sel.value = cur;
+  updateTxInfo();
+}
+function updateTxInfo() {
+  const p = S.pmap[$('#txSku').value]; const t = S.txType;
+  $$('#txType button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $('#txQtyLbl').textContent = t === 'ADJ' ? 'จำนวนปรับ (+ เพิ่ม / − ลด)' : 'จำนวน';
+  $('#txCost').parentElement.style.display = t === 'IN' ? '' : 'none';
+  $('#txSubmit').className = 'btn ' + (t === 'IN' ? 'green' : t === 'OUT' ? 'orange' : '');
+  $('#txSubmit').style.cssText = 'width:100%;justify-content:center';
+  $('#txSubmit').textContent = t === 'IN' ? 'บันทึกรับเข้า' : t === 'OUT' ? 'บันทึกเบิกออก' : 'บันทึกปรับปรุง';
+  if (p) { if (t === 'IN' && !$('#txCost').dataset.touched) $('#txCost').value = p.cost; $('#txInfo').innerHTML = `คงเหลือ <b>${fmt(p.stock)}</b> ${esc(p.unit)} · จุดสั่งซื้อ ${fmt(p.rop)} · สูงสุด ${fmt(p.max)} · ต้นทุนเฉลี่ย ${fmt(p.cost, 2)} บาท`; }
+  else $('#txInfo').textContent = 'ยังไม่มีสินค้า — เพิ่มสินค้าก่อน';
+}
+function renderTxRows() {
+  const q = ($('#tSearch').value || '').toLowerCase(), ty = $('#tType').value;
+  const list = S.raw.txns.filter(t => (!ty || t.type === ty) && (!q || (t.sku + ' ' + t.ref + ' ' + ((S.pmap[t.sku] || {}).name || '')).toLowerCase().includes(q))).slice(-200).reverse();
+  const tag = { IN: ['รับเข้า', 'c-green'], OUT: ['เบิกออก', 'c-orange'], ADJ: ['ปรับปรุง', 'c-blue'] };
+  $('#txRows').innerHTML = list.length ? list.map(t => `<tr><td style="white-space:nowrap">${thDate(t.date)}</td><td><span class="chip ${tag[t.type][1]}">${tag[t.type][0]}</span></td><td><b>${esc(t.sku)}</b> <span class="hint">${esc((S.pmap[t.sku] || {}).name || '')}</span></td><td class="num">${t.type === 'OUT' ? '−' : t.type === 'ADJ' && t.qty > 0 ? '+' : t.type === 'IN' ? '+' : ''}${fmt(Math.abs(t.qty))}</td><td class="num">${fmt(Math.abs(t.qty) * t.cost)}</td><td>${esc(t.ref)}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">ยังไม่มีรายการ</td></tr>';
+}
+
+function renderAnalysis(A) {
+  $('#anRange').textContent = `ช่วง ${thDate(A.range.from)} – ${thDate(A.range.to)}`;
+  const top = A.abc.filter(r => r.v > 0).slice(0, 15);
+  const gc = { A: '#ef4444', B: '#2563eb', C: '#16a34a' };
+  chart('cPareto', { data: { labels: top.map(r => r.p.sku), datasets: [
+    { type: 'bar', label: 'มูลค่าใช้', data: top.map(r => Math.round(r.v)), backgroundColor: top.map(r => gc[r.g]), borderRadius: 5, yAxisID: 'y' },
+    { type: 'line', label: '% สะสม', data: top.map(r => +(r.cumPct * 100).toFixed(1)), borderColor: '#0b1f4d', pointRadius: 3, tension: .3, yAxisID: 'y1' }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { title: c => S.pmap[top[c[0].dataIndex].p.sku].name } } }, scales: { y: { grid: gridOpt, ticks: { callback: v => money(v) } }, y1: { position: 'right', min: 0, max: 100, grid: { display: false }, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } } } });
+
+  const cat = {}; S.raw.products.forEach(p => cat[p.category] = (cat[p.category] || 0) + p.value);
+  const cats = Object.keys(cat).sort((a, b) => cat[b] - cat[a]);
+  chart('cCat', { type: 'bar', data: { labels: cats, datasets: [{ data: cats.map(c => Math.round(cat[c])), backgroundColor: '#3b82f6', borderRadius: 6 }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => money(c.raw) } } }, scales: { x: { grid: gridOpt, ticks: { callback: v => money(v) } }, y: { grid: { display: false } } } } });
+
+  chart('cFlow', { type: 'bar', data: { labels: A.months.map(m => TH_MON[m.d.getMonth()]), datasets: [{ label: 'รับเข้า', data: A.months.map(m => Math.round(m.inVal)), backgroundColor: '#22c55e', borderRadius: 4 }, { label: 'เบิกออก', data: A.months.map(m => Math.round(m.cogs)), backgroundColor: '#f97316', borderRadius: 4 }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + money(c.raw) } } }, scales: { y: { grid: gridOpt, ticks: { callback: v => money(v) } }, x: { grid: { display: false } } } } });
+
+  const slow = S.raw.products.filter(p => p.stock > 0 && (p.out90 === 0 || p.age > 180)).sort((a, b) => b.value - a.value);
+  $('#slowRows').innerHTML = slow.length ? slow.map(p => `<tr><td><b>${esc(p.name)}</b><br><span class="hint">${esc(p.sku)}</span></td><td class="num">${fmt(p.stock)}</td><td class="num">${fmt(p.value)}</td><td class="num"><span class="chip ${p.age > 180 ? 'c-red' : 'c-orange'}">${p.age} วัน</span></td><td class="num">${fmt(p.out90)}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">ไม่มีสินค้าค้างนาน</td></tr>';
+
+  const days = A.range.days;
+  $('#abcRows').innerHTML = A.abc.map(r => { const daily = r.q / days; const cover = daily > 0 ? r.p.stock / daily : null; const turn = r.p.value > 0 ? r.v / r.p.value * 365 / days : 0; const cl = { A: 'c-red', B: 'c-blue', C: 'c-green' }[r.g];
+    return `<tr><td><span class="chip ${cl}">${r.g}</span></td><td><b>${esc(r.p.name)}</b> <span class="hint">${esc(r.p.sku)}</span></td><td class="num">${fmt(r.q)}</td><td class="num">${fmt(r.v)}</td><td class="num">${(r.cumPct * 100).toFixed(1)}%</td><td class="num">${fmt(daily, 2)}</td><td class="num">${cover == null ? '∞' : fmt(cover)}</td><td class="num">${A.basis === 'usage' ? turn.toFixed(1) : '-'}</td></tr>`; }).join('');
+}
+
+function renderPurchase() {
+  const list = reorderList();
+  $('#planRows').innerHTML = list.length ? list.map(p => {
+    if (S.planQty[p.sku] == null) S.planQty[p.sku] = p.suggest;
+    if (S.planSel[p.sku] == null) S.planSel[p.sku] = p.suggest > 0;
+    const q = S.planQty[p.sku];
+    return `<tr><td><input type="checkbox" data-sel="${esc(p.sku)}" ${S.planSel[p.sku] ? 'checked' : ''}></td><td><div class="prod"><div class="pi">${icon(p.category)}</div><div><b>${esc(p.name)}</b><small>${esc(p.sku)}</small></div></div></td><td>${esc(p.supplier)}</td><td class="num"><span class="chip ${p.stock <= 0 ? 'c-red' : 'c-orange'}">${fmt(p.stock)}</span></td><td class="num">${fmt(p.rop)}</td><td class="num">${p.pending ? fmt(p.pending) : '-'}</td><td class="num">${isFinite(p.cover) ? fmt(p.cover) : '∞'}</td><td class="num">${p.lead} วัน</td><td class="num"><input type="number" min="0" data-q="${esc(p.sku)}" value="${q}" style="width:80px;border:1px solid var(--line);border-radius:8px;padding:5px;text-align:right"></td><td class="num">${fmt(q * p.cost)}</td></tr>`;
+  }).join('') : '<tr><td colspan="10" class="empty">🎉 ยังไม่มีสินค้าที่ต้องสั่งซื้อ</td></tr>';
+  $('#chkAll').checked = list.length > 0 && list.every(p => S.planSel[p.sku]);
+  const tot = list.filter(p => S.planSel[p.sku]).reduce((s, p) => s + Math.max(0, n0(S.planQty[p.sku])) * p.cost, 0);
+  $('#planTotal').textContent = `มูลค่าสั่งซื้อที่เลือก: ${fmt(tot)} บาท`;
+
+  const groups = {}; S.raw.pos.forEach(l => { (groups[l.id] = groups[l.id] || { id: l.id, date: l.date, lines: [], status: 'รับแล้ว' }).lines.push(l); if (l.status === 'รอรับ') groups[l.id].status = 'รอรับ'; });
+  const pos = Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date));
+  $('#poRows').innerHTML = pos.length ? pos.map(g => `<tr><td><b>${esc(g.id)}</b></td><td>${thDate(g.date)}</td><td>${g.lines.map(l => esc(l.sku) + ' × ' + fmt(l.qty)).join(', ')}</td><td class="num">${fmt(g.lines.reduce((s, l) => s + n0(l.qty) * n0(l.cost), 0))}</td><td><span class="chip ${g.status === 'รอรับ' ? 'c-orange' : 'c-green'}">${g.status}</span></td><td>${g.status === 'รอรับ' ? `<button class="btn sm green" data-recv="${esc(g.id)}">รับสินค้าเข้า</button>` : ''}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">ยังไม่มีใบสั่งซื้อ</td></tr>';
+}
+
+function renderMeta() {
+  const r = S.raw;
+  const cats = [...new Set(r.products.map(p => p.category))].sort();
+  const sel = $('#pCat'), cur = sel.value;
+  sel.innerHTML = '<option value="">ทุกหมวดหมู่</option>' + cats.map(c => `<option>${esc(c)}</option>`).join(''); sel.value = cur;
+  $('#catList').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+  $('#supList').innerHTML = [...new Set(r.products.map(p => p.supplier).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join('');
+  const lc = r.products.filter(p => p.status === 'low' || p.status === 'out').length;
+  $('#bellCount').textContent = lc; $('#bellCount').style.display = lc ? '' : 'none';
+  $('#avatar').textContent = (r.user || 'U')[0].toUpperCase();
+  $('#greetSub').textContent = `ยินดีต้อนรับสู่ Inventory Intelligence · ${r.settings.companyName || ''}`;
+  $('#sCompany').value = r.settings.companyName || ''; $('#sEmail').value = r.settings.alertEmail || '';
+  $('#sEmailOn').checked = r.settings.emailAlerts === 'true'; $('#sLook').value = r.settings.lookbackDays || 400;
+  $('#lnkSheet').href = r.ssUrl || '#';
+  $('#sideFoot').innerHTML = r.ssUrl ? `ข้อมูลเก็บที่ <a href="${esc(r.ssUrl)}" target="_blank">Google Sheets</a>` : 'โหมดตัวอย่าง (ไม่ได้เชื่อม Sheets)';
+  $('#alertsAll').innerHTML = alertsHtml(100);
+}
+
+function renderAll() {
+  if (!S.raw) return;
+  renderMeta();
+  const A = analyze();
+  if (S.page === 'dashboard') renderDashboard(A);
+  if (S.page === 'products') renderProducts();
+  if (S.page === 'transactions') { renderTxForm(); renderTxRows(); }
+  if (S.page === 'analysis') renderAnalysis(A);
+  if (S.page === 'purchase') renderPurchase();
+}
+
+/* ================= Navigation & events ================= */
+function go(page) {
+  S.page = page;
+  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  $$('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
+  closeMenu(); window.scrollTo(0, 0); renderAll();
+}
+function closeMenu() { $('#sidebar').classList.remove('open'); $('#overlay').classList.remove('open'); }
+$$('.nav-btn').forEach(b => b.onclick = () => go(b.dataset.page));
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go); });
+$('#hamb').onclick = () => { $('#sidebar').classList.add('open'); $('#overlay').classList.add('open'); };
+$('#overlay').onclick = closeMenu;
+$('#bell').onclick = () => { $('#pStatus').value = 'alert'; go('products'); };
+$('#globalSearch').addEventListener('input', e => { $('#pSearch').value = e.target.value; if (S.page !== 'products') go('products'); else renderProducts(); });
+$('#preset').onchange = e => { setPreset(e.target.value); renderAll(); };
+['#dFrom', '#dTo'].forEach(id => $(id).onchange = () => { $('#preset').value = 'custom'; renderAll(); });
+['#pSearch', '#pCat', '#pStatus'].forEach(id => $(id).addEventListener('input', renderProducts));
+['#tSearch', '#tType'].forEach(id => $(id).addEventListener('input', renderTxRows));
+
+// products table actions
+$('#productRows').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.edit) openProduct(S.pmap[b.dataset.edit]);
+  if (b.dataset.del && confirm('ลบสินค้า ' + b.dataset.del + ' ?\n(ประวัติธุรกรรมยังคงอยู่)')) call('deleteProduct', [b.dataset.del], 'ลบสินค้าแล้ว');
+  if (b.dataset.tx) { S.txType = b.dataset.tx; go('transactions'); $('#txSku').value = b.dataset.sku; $('#txCost').dataset.touched = ''; updateTxInfo(); $('#txQty').focus(); }
+});
+
+// product modal
+let editing = null;
+function openProduct(p) {
+  editing = p || null;
+  $('#pModalTitle').textContent = p ? 'แก้ไขสินค้า ' + p.sku : 'เพิ่มสินค้า';
+  const v = p || { sku: '', name: '', category: '', unit: 'ชิ้น', cost: 0, price: 0, stock: 0, rop: 10, max: 100, lead: 7, supplier: '' };
+  $('#fSku').value = v.sku; $('#fSku').disabled = !!p; $('#fName').value = v.name; $('#fCat').value = v.category; $('#fUnit').value = v.unit;
+  $('#fCost').value = v.cost; $('#fPrice').value = v.price; $('#fStock').value = v.stock; $('#fRop').value = v.rop; $('#fMax').value = v.max; $('#fLead').value = v.lead; $('#fSupplier').value = v.supplier;
+  $('#fStockWrap').style.display = p ? 'none' : '';
+  $('#pModal').classList.add('open'); setTimeout(() => (p ? $('#fName') : $('#fSku')).focus(), 50);
+}
+$('#btnAddProduct').onclick = () => openProduct(null);
+$$('[data-close]').forEach(b => b.onclick = () => $('#pModal').classList.remove('open'));
+$('#pModal').onclick = e => { if (e.target.id === 'pModal') $('#pModal').classList.remove('open'); };
+$('#pSave').onclick = async () => {
+  if (!$('#pForm').reportValidity()) return;
+  const p = { sku: $('#fSku').value, name: $('#fName').value, category: $('#fCat').value, unit: $('#fUnit').value, cost: $('#fCost').value, price: $('#fPrice').value, stock: $('#fStock').value, rop: $('#fRop').value, max: $('#fMax').value, lead: $('#fLead').value, supplier: $('#fSupplier').value };
+  try { await call('saveProduct', [p, !editing], editing ? 'บันทึกการแก้ไขแล้ว' : 'เพิ่มสินค้าแล้ว'); $('#pModal').classList.remove('open'); } catch (e) {}
+};
+
+// transaction form
+$('#txType').onclick = e => { const b = e.target.closest('button'); if (!b) return; e.preventDefault(); S.txType = b.dataset.t; updateTxInfo(); };
+$('#txSku').onchange = () => { $('#txCost').dataset.touched = ''; updateTxInfo(); };
+$('#txCost').oninput = () => $('#txCost').dataset.touched = '1';
+$('#txForm').onsubmit = async e => {
+  e.preventDefault();
+  const t = { type: S.txType, sku: $('#txSku').value, qty: $('#txQty').value, cost: S.txType === 'IN' ? $('#txCost').value : '', date: $('#txDate').value, ref: $('#txRef').value, note: $('#txNote').value };
+  try { await call('recordTransaction', [t], 'บันทึกสำเร็จ'); $('#txQty').value = ''; $('#txRef').value = ''; $('#txNote').value = ''; $('#txCost').dataset.touched = ''; updateTxInfo(); } catch (e) {}
+};
+
+// purchase plan
+$('#planRows').addEventListener('input', e => {
+  const t = e.target;
+  const list = reorderList();
+  if (t.dataset.q) {
+    const val = Math.max(0, n0(t.value));
+    if (n0(t.value) < 0) t.value = 0;
+    S.planQty[t.dataset.q] = val;
+    const p = S.pmap[t.dataset.q];
+    t.closest('tr').lastElementChild.textContent = fmt(val * p.cost);
+  }
+  if (t.dataset.sel) {
+    S.planSel[t.dataset.sel] = t.checked;
+    $('#chkAll').checked = list.length > 0 && list.every(p => S.planSel[p.sku]);
+  }
+  const tot = list.filter(p => S.planSel[p.sku]).reduce((s, p) => s + Math.max(0, n0(S.planQty[p.sku])) * p.cost, 0);
+  $('#planTotal').textContent = `มูลค่าสั่งซื้อที่เลือก: ${fmt(tot)} บาท`;
+});
+$('#chkAll').onchange = e => { reorderList().forEach(p => S.planSel[p.sku] = e.target.checked); renderPurchase(); };
+$('#btnCreatePO').onclick = async () => {
+  const items = reorderList().filter(p => S.planSel[p.sku] && n0(S.planQty[p.sku]) > 0).map(p => ({ sku: p.sku, qty: n0(S.planQty[p.sku]) }));
+  if (!items.length) return toast('เลือกสินค้าและระบุจำนวนก่อน', true);
+  try { await call('createPurchaseOrder', [items], 'สร้างใบสั่งซื้อแล้ว'); S.planQty = {}; S.planSel = {}; renderPurchase(); } catch (e) {}
+};
+$('#poRows').addEventListener('click', e => { const b = e.target.closest('[data-recv]'); if (b && confirm('ยืนยันรับสินค้าเข้า ' + b.dataset.recv + ' ?')) call('receivePurchaseOrder', [b.dataset.recv], 'รับสินค้าเข้าแล้ว — สต็อกอัปเดตแล้ว').then(() => { S.planQty = {}; S.planSel = {}; renderPurchase(); }).catch(() => {}); });
+
+// reports & settings
+$('#btnReport').onclick = () => call('generateMonthlyReport', [], 'สร้างรายงานแล้ว').catch(() => {});
+$('#btnCheck').onclick = () => call('checkStockAlerts', [], 'ตรวจสต็อกเรียบร้อย').catch(() => {});
+$('#btnTriggers').onclick = () => call('installTriggers', []).catch(() => {});
+$('#btnSample').onclick = () => { if (confirm('ล้างข้อมูลทั้งหมดใน Products / Transactions / Alerts / PurchaseOrders แล้วโหลดข้อมูลตัวอย่าง?')) call('setupWithSample', [], 'โหลดข้อมูลตัวอย่างแล้ว').catch(() => {}); };
+$('#setForm').onsubmit = e => { e.preventDefault(); call('saveSettings', [{ companyName: $('#sCompany').value, alertEmail: $('#sEmail').value, emailAlerts: String($('#sEmailOn').checked), lookbackDays: $('#sLook').value }], 'บันทึกการตั้งค่าแล้ว').catch(() => {}); };
+function csv(name, rows) {
+  const s = '﻿' + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([s], { type: 'text/csv;charset=utf-8' })); a.download = name; a.click();
+}
+$('#btnCsvP').onclick = () => csv('products.csv', [['SKU', 'ชื่อ', 'หมวด', 'หน่วย', 'ต้นทุน', 'ราคา', 'คงเหลือ', 'จุดสั่งซื้อ', 'สูงสุด', 'สถานะ', 'มูลค่า', 'อายุ(วัน)']].concat(S.raw.products.map(p => [p.sku, p.name, p.category, p.unit, p.cost, p.price, p.stock, p.rop, p.max, STATUS[p.status].t, p.value, p.age])));
+$('#btnCsvT').onclick = () => csv('transactions.csv', [['วันที่', 'เลขที่', 'ประเภท', 'SKU', 'จำนวน', 'ต้นทุน', 'อ้างอิง', 'หมายเหตุ', 'ผู้บันทึก']].concat(S.raw.txns.map(t => [t.date, t.id, t.type, t.sku, t.qty, t.cost, t.ref, t.note, t.user])));
+
+/* ================= Boot ================= */
+(async function init() {
+  setPreset('365'); $('#txDate').value = ymd(new Date());
+  $('#demoBanner').hidden = !!IS_GAS;
+  busy(true);
+  try {
+    S.raw = await api('getInitData'); hydrate(); renderAll();
+    if (IS_GAS && !S.raw.products.length) toast('ยังไม่มีข้อมูล — เพิ่มสินค้า หรือโหลดข้อมูลตัวอย่างที่หน้า Settings');
+  } catch (e) { toast('โหลดข้อมูลไม่สำเร็จ: ' + (e.message || e), true); }
+  finally { busy(false); }
+})();
+</script>
+</body>
+</html>
