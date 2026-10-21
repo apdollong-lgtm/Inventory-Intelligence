@@ -9,8 +9,8 @@
 
 Browser testing found and fixed an autofocus race in the product modal in addition to data-validation and audit-safety issues fixed in the backend.
 
-Google live acceptance is still unverified: clasp is authenticated, but the attempt to invoke `getInitData` through Apps Script API returned `NOT_FOUND`. This does not establish whether the existing `/exec` deployment works. Updating that live deployment requires the owner's explicit approval after automatic approval review rejected it. Email delivery and scheduled triggers have not been exercised.
+Google live acceptance is still unverified: clasp is authenticated, but the attempt to invoke `getInitData` through Apps Script API returned `NOT_FOUND`. This does not establish whether the existing `/exec` deployment works. After explicit owner approval, the existing Apps Script deployment was successfully updated to version 2 on 21 October 2026. Email delivery and scheduled triggers have not been exercised.
 
-Catalog production deployment is awaiting approval of PR #9 in `apdollong-lgtm/factorystudio-code-catalog`. The Inventory CI produces delivery artifacts while `CATALOG_SYNC_ENABLED` is unset. Catalog publication can begin after that PR is merged/deployed and the variable is enabled.
+Catalog PR #9 in `apdollong-lgtm/factorystudio-code-catalog` was approved by the owner, merged and deployed successfully to Vercel production. `CATALOG_SYNC_ENABLED=true` enables upload of metadata, source ZIP and narrated installation video after successful CI on each master/main push. Catalog purchase/download verification remains pending.
 
 Status: tested source template, **Beta** pending Google owner-account acceptance and catalog purchase/download verification. Do not describe the product as fully production-verified yet.

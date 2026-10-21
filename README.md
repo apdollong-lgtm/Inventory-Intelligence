@@ -28,7 +28,7 @@ npm run video
 npm run video:render
 ```
 
-Remotion Studio shows a Thai 16:9 motion-graphics installation guide. Its source is in `video/src`. MP4 output is `out/installation-guide.mp4`; it is a captioned guide without narration.
+Remotion Studio shows a Thai 16:9 motion-graphics installation guide with Thai narration. Its source is in `video/src`; narration text is in `video/narration.json` and audio is bundled in `video/public/voiceover`. MP4 output is `out/installation-guide.mp4` (123 seconds). To regenerate narration on a Windows host with Microsoft Pattara installed, run `./scripts/generate-narration.ps1` in PowerShell 7 and recheck scene durations before rendering.
 
 ## Updates and data safety
 
