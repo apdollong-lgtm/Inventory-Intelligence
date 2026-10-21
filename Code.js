@@ -437,6 +437,7 @@ function checkStockAlerts() {
     MailApp.sendEmail({
       to: settings.alertEmail,
       subject: '[Inventory] แจ้งเตือนสต็อก ' + settings.companyName + ' — ต่ำกว่าเกณฑ์ ' + low.length + ' รายการ',
+      body: 'สรุปสถานะสต็อก ' + settings.companyName + '\nต่ำกว่าเกณฑ์/หมดสต็อก: ' + low.length + ' รายการ\nเกินสต็อก: ' + over.length + ' รายการ\nเปิดฐานข้อมูล: ' + ss_().getUrl(),
       htmlBody: '<p>สรุปสถานะสต็อก ณ ' + escHtml_(new Date().toLocaleString('th-TH')) + '</p>' +
         table('สินค้าต่ำกว่าเกณฑ์ / หมดสต็อก', low) + table('สินค้าล้นสต็อก', over) +
         '<p><a href="' + escHtml_(ss_().getUrl()) + '">เปิด Google Sheets</a></p>'
@@ -453,10 +454,10 @@ function generateMonthlyReport() {
   const end = new Date(now.getFullYear(), now.getMonth(), 1);
   const label = Utilities.formatDate(start, tz, 'yyyy-MM');
   const products = readRows_(SHEETS.P);
-  const map = {}; products.forEach(p => map[p.sku] = p);
+  const map = Object.create(null); products.forEach(p => map[p.sku] = p);
   const txns = readRows_(SHEETS.T).filter(t => { const d = new Date(t.date); return d >= start && d < end; });
 
-  let inVal = 0, outVal = 0; const usage = {};
+  let inVal = 0, outVal = 0; const usage = Object.create(null);
   txns.forEach(t => {
     const v = num_(t.qty) * num_(t.cost);
     if (t.type === 'IN') inVal += v;
@@ -489,7 +490,7 @@ function generateMonthlyReport() {
   sh.getRange(1, 1).setFontSize(14).setFontWeight('bold');
   sh.getRange(13, 1).setFontWeight('bold');
   if (top.length) {
-    const t = top.map(s => [s, map[s] ? map[s].name : '', usage[s]]);
+    const t = top.map(s => [text_(s), text_(map[s] ? map[s].name : ''), usage[s]]);
     sh.getRange(14, 1, 1, 3).setValues([['SKU', 'สินค้า', 'มูลค่าเบิก']]).setFontWeight('bold').setBackground('#e8efff');
     sh.getRange(15, 1, t.length, 3).setValues(t);
   }
@@ -511,12 +512,14 @@ function generateMonthlyReport() {
 
 /** ติดตั้ง Trigger: ตรวจสต็อกทุกวัน 08:00 + รายงานทุกวันที่ 1 */
 function installTriggers() {
+  return withLock_(() => {
   const handlers = ['checkStockAlerts', 'generateMonthlyReport'];
   ScriptApp.getProjectTriggers().forEach(t => { if (handlers.indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('checkStockAlerts').timeBased().everyDays(1).atHour(8).create();
-  ScriptApp.newTrigger('generateMonthlyReport').timeBased().onMonthDay(1).atHour(7).create();
+  ScriptApp.newTrigger('checkStockAlerts').timeBased().everyDays(1).atHour(8).inTimezone(Session.getScriptTimeZone()).create();
+  ScriptApp.newTrigger('generateMonthlyReport').timeBased().onMonthDay(1).atHour(7).inTimezone(Session.getScriptTimeZone()).create();
   logAlert_('UPDATE', '', 'ติดตั้ง Automation: ตรวจสต็อกทุกวัน 08:00 และรายงานทุกวันที่ 1');
   return 'ติดตั้ง Trigger สำเร็จ: ตรวจสต็อกทุกวัน 08:00 น. และสร้างรายงานทุกวันที่ 1 ของเดือน';
+  });
 }
 
 /* ------------------------------------------------------------------ */

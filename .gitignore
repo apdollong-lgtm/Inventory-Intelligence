@@ -7,3 +7,4 @@ out/
 *.log
 catalog-integration/
 test-results/
+.qa/

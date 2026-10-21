@@ -5,6 +5,7 @@ const fs = require('node:fs');
 
 function backend() {
   const sheets = new Map();
+  const sent = [], triggers = [];
   class Sheet {
     constructor(name) { this.name = name; this.rows = []; }
     getLastRow() { return this.rows.length; }
@@ -24,9 +25,15 @@ function backend() {
     deleteRow(r) { this.rows.splice(r - 1, 1); }
   }
   const ss = {getSheetByName: n => sheets.get(n), insertSheet(n) { const sh = new Sheet(n); sheets.set(n, sh); return sh; }, getUrl: () => 'https://docs.google.com/spreadsheets/d/test', getId: () => 'test'};
-  const context = vm.createContext({console, Date, Set, SpreadsheetApp: {getActiveSpreadsheet: () => ss}, LockService: {getScriptLock: () => ({waitLock() {}, releaseLock() {}})}, Session: {getActiveUser: () => ({getEmail: () => 'owner@example.com'}), getScriptTimeZone: () => 'Asia/Bangkok'}, Utilities: {getUuid: () => require('node:crypto').randomUUID(), formatDate: d => new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Bangkok', year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}});
+  const scriptApp = {
+    getProjectTriggers: () => triggers.slice(),
+    deleteTrigger(t) { triggers.splice(triggers.indexOf(t), 1); },
+    newTrigger(handler) { const t={handler,getHandlerFunction:()=>handler}; const builder={}; for(const key of ['timeBased','everyDays','atHour','onMonthDay','inTimezone']) builder[key]=(value)=>{t[key]=value;return builder;}; builder.create=()=>{triggers.push(t);return t;}; return builder; }
+  };
+  const mailApp = {sendEmail(message) {assert.ok(message.to); assert.ok(message.subject); assert.ok(message.body, 'Plain-text body required'); sent.push(message);}};
+  const context = vm.createContext({console, Date, Set, ScriptApp:scriptApp,MailApp:mailApp, SpreadsheetApp: {getActiveSpreadsheet: () => ss}, LockService: {getScriptLock: () => ({waitLock() {}, releaseLock() {}})}, Session: {getActiveUser: () => ({getEmail: () => 'owner@example.com'}), getScriptTimeZone: () => 'Asia/Bangkok'}, Utilities: {getUuid: () => require('node:crypto').randomUUID(), formatDate: d => new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Bangkok', year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}});
   vm.runInContext(fs.readFileSync('Code.js', 'utf8'), context);
-  return {context, sheets};
+  return {context, sheets, sent, triggers};
 }
 const product = (more = {}) => ({sku: 'TEST-1', name: 'Test', cost: 10, price: 20, stock: 10, rop: 2, max: 20, lead: 7, ...more});
 test('opening stock, weighted cost, outgoing and negative adjustments reconcile', () => {
@@ -83,4 +90,35 @@ test('frontend inline script parses and CSV cells neutralize formulas', () => {
   const source = scripts.join('\n').match(/function csvCell\(v\) \{[^\n]+/)[0];
   const c = vm.createContext({}); vm.runInContext(source, c);
   assert.equal(c.csvCell(' =1+1'), "' =1+1"); assert.equal(c.csvCell(-5), '-5');
+});
+
+test('alert email includes text/HTML and escapes product data, disabled email sends nothing', () => {
+  const {context:c,sent}=backend();
+  c.saveProduct(product({name:'<img src=x>',stock:1}),true);
+  c.checkStockAlerts(); assert.equal(sent.length,0);
+  c.saveSettings({emailAlerts:'true',alertEmail:'owner@example.com'});
+  c.checkStockAlerts(); assert.equal(sent.length,1);
+  assert.match(sent[0].htmlBody,/&lt;img src=x&gt;/);
+  assert.ok(!sent[0].htmlBody.includes('<img src=x>'));
+  assert.match(sent[0].body,/https:\/\/docs.google.com\/spreadsheets/);
+});
+
+test('trigger installation is repeatable, scoped to app handlers and explicitly uses Bangkok', () => {
+  const {context:c,triggers}=backend();
+  triggers.push({getHandlerFunction:()=> 'otherApplicationHandler'});
+  c.installTriggers(); c.installTriggers();
+  assert.equal(triggers.length,3);
+  const daily=triggers.find(t=>t.handler==='checkStockAlerts');
+  const monthly=triggers.find(t=>t.handler==='generateMonthlyReport');
+  assert.equal(daily.everyDays,1); assert.equal(daily.atHour,8); assert.equal(daily.inTimezone,'Asia/Bangkok');
+  assert.equal(monthly.onMonthDay,1); assert.equal(monthly.atHour,7); assert.equal(monthly.inTimezone,'Asia/Bangkok');
+});
+
+test('analytics handles a SKU named constructor without inheriting object properties', () => {
+  const source=fs.readFileSync('Index.html','utf8');
+  const hydrate=source.slice(source.indexOf('function hydrate()'),source.indexOf('function stockAt('));
+  const product={sku:'constructor',cost:10,price:20,stock:5,rop:1,max:10,lead:7,lastReceived:new Date().toISOString()};
+  const S={raw:{products:[product],txns:[{sku:'constructor',type:'OUT',qty:3,cost:10,date:new Date().toISOString()}],pos:[]}};
+  vm.runInNewContext(hydrate+'\nhydrate();',{S,n0:v=>Number(v)||0,statusOf:()=> 'ok',DAY:86400000,Date});
+  assert.equal(product.out90,3); assert.equal(product.daily,3/90); assert.ok(Number.isFinite(product.cover));
 });

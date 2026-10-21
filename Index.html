@@ -705,7 +705,7 @@ function hydrate() {
     p.status = statusOf(p);
     p.value = p.stock * p.cost;
   });
-  const out90 = {}; const since = now - 90 * DAY;
+  const out90 = Object.create(null); const since = now - 90 * DAY;
   r.txns.forEach(t => { if (t.type === 'OUT' && t.ts >= since) out90[t.sku] = (out90[t.sku] || 0) + t.qty; });
   r.products.forEach(p => { p.out90 = out90[p.sku] || 0; p.daily = p.out90 / 90; p.cover = p.daily > 0 ? p.stock / p.daily : Infinity; });
   const pending = Object.create(null); r.pos.forEach(po => { if (po.status === 'รอรับ') pending[po.sku] = (pending[po.sku] || 0) + n0(po.qty); });

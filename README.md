@@ -42,4 +42,4 @@ Includes product CRUD, stock receipt/issue/adjustment, weighted average inbound 
 
 Google Apps Script, Sheets and MailApp quotas apply. External Chart.js and Google Fonts require internet access. Buyer data stays in the buyer's Google account; the seller does not automatically receive it.
 
-See [release verification](docs/release-checklist.md) and [deployment](docs/deployment.md). The owner approved THB 999 and the existing FactoryStudio license/support terms; links are in `LICENSE.txt`. Product status remains Beta pending Google live acceptance checks.
+See [release verification](docs/release-checklist.md), [live acceptance evidence](docs/acceptance-2026-10-21.md), and [deployment](docs/deployment.md). The owner approved THB 999 and the existing FactoryStudio license/support terms; links are in `LICENSE.txt`. Google stock, email and time-driven execution checks have passed. Status remains Beta pending a non-admin buyer checkout and post-payment download acceptance.
