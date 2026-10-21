@@ -9,6 +9,7 @@
   },
   "private": true,
   "dependencies": {
+    "@fontsource/noto-sans-thai": "^5.3.0",
     "@remotion/cli": "4.0.537",
     "react": "19.2.3",
     "react-dom": "19.2.3",

@@ -1,10 +1,14 @@
-import React from 'react';
-import {AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
+import React, {useEffect, useState} from 'react';
+import {AbsoluteFill, continueRender, delayRender, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
+import '@fontsource/noto-sans-thai/400.css';
+import '@fontsource/noto-sans-thai/700.css';
 
 type Props = {step:string; title:string; subtitle:string; lines:string[]; panel:string; badge:string};
 export const GuideScene: React.FC<Props> = ({step,title,subtitle,lines,panel,badge}) => {
   const frame=useCurrentFrame(); const {fps,durationInFrames}=useVideoConfig();
-  return <AbsoluteFill style={{background:'#081630',color:'#f3f7ff',fontFamily:'Tahoma, sans-serif',padding:90,overflow:'hidden'}}>
+  const [fontHandle]=useState(()=>delayRender('Loading bundled Thai font'));
+  useEffect(()=>{Promise.all([document.fonts.load('400 30px "Noto Sans Thai"'),document.fonts.load('700 66px "Noto Sans Thai"')]).then(()=>continueRender(fontHandle));},[fontHandle]);
+  return <AbsoluteFill style={{background:'#081630',color:'#f3f7ff',fontFamily:'"Noto Sans Thai", sans-serif',padding:90,overflow:'hidden'}}>
     <div style={{position:'absolute',width:850,height:850,border:'1px solid #18365d',borderRadius:'50%',right:-220,top:-300,scale:interpolate(frame,[0,durationInFrames],[0.9,1.1])}}/>
     <div style={{position:'absolute',width:600,height:600,background:'radial-gradient(circle,#095aa65c,transparent 70%)',right:0,bottom:-100,translate:interpolate(frame,[0,durationInFrames],['0px 0px','-120px -60px'])}}/>
     <div style={{display:'flex',justifyContent:'space-between',fontSize:23,letterSpacing:3,color:'#81a6cf'}}><span>FACTORYSTUDIO / INVENTORY INTELLIGENCE</span><span>INSTALLATION / {step}</span></div>
