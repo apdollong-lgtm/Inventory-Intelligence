@@ -1,0 +1,15 @@
+Inventory Intelligence — commercial source template
+
+Distributed by FactoryStudio under the FactoryStudio software license and
+purchase/support terms accepted at checkout. The buyer's order and the terms
+shown at purchase govern the permitted use, support and refund policy.
+
+Software license: https://catalog.factorystudio.pro/software-license
+Purchase terms: https://catalog.factorystudio.pro/purchase-terms
+Refund policy: https://catalog.factorystudio.pro/refund-policy
+Support: https://catalog.factorystudio.pro/contact
+
+The product package contains first-party application source. Google services,
+Chart.js, fonts, React and Remotion remain subject to their respective licenses
+and service terms. Remotion development sources are kept in the repository and
+are not required for the buyer's Apps Script installation.

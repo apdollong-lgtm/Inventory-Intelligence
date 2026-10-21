@@ -1,0 +1,40 @@
+name: Verify and update catalog
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: inventory-catalog-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - run: npm run build
+      - run: cd dist/inventory-intelligence && zip -r ../inventory-intelligence.zip .
+      - run: npm --prefix video ci
+      - run: npm --prefix video run lint
+      - run: npm run video:render
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inventory-intelligence-delivery
+          path: |
+            dist/inventory-intelligence.zip
+            out/installation-guide.mp4
+      - name: Sync approved catalog integration
+        if: vars.CATALOG_SYNC_ENABLED == 'true'
+        run: node scripts/sync-catalog.mjs
+        env:
+          CATALOG_API_URL: https://catalog.factorystudio.pro

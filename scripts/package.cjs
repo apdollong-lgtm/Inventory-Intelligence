@@ -1,0 +1,10 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const dest = path.resolve('dist/inventory-intelligence');
+fs.mkdirSync(dest, {recursive:true});
+for (const [src, target] of [['Code.js','Code.gs'],['Index.html','Index.html'],['appsscript.json','appsscript.json'],['LICENSE.txt','LICENSE.txt'],['README.md','README.md'],['docs/installation.html','INSTALL-TH.html'],['docs/release-checklist.md','RELEASE-CHECKLIST.md']]) fs.copyFileSync(src, path.join(dest,target));
+fs.writeFileSync(path.join(dest,'VERSION.txt'), require('../package.json').version + '\n');
+fs.mkdirSync(path.join(dest,'docs'), {recursive:true});
+for (const file of ['installation.html','release-checklist.md','deployment.md']) fs.copyFileSync('docs/'+file,path.join(dest,'docs',file));
+fs.copyFileSync('Code.js',path.join(dest,'Code.js'));
+console.log('Buyer files: ' + dest);

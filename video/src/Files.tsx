@@ -1,0 +1,2 @@
+import {GuideScene} from './GuideScene';
+export const Files=()=> <GuideScene step="03" badge="COPY THREE FILES" title="วางไฟล์ระบบ ให้ครบทั้ง 3 ไฟล์" subtitle="ไม่ต้องนำโฟลเดอร์ video หรือไฟล์ทดสอบไปวาง" lines={['Code.js → วางใน Code.gs','สร้าง HTML ชื่อ Index → วาง Index.html','เปิด manifest ใน Settings แล้ววาง appsscript.json']} panel={'Code.gs\nIndex.html\nappsscript.json\nTime zone: Asia/Bangkok'} />;

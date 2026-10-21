@@ -1,0 +1,2 @@
+import {GuideScene} from './GuideScene';
+export const Initialize=()=> <GuideScene step="04" badge="INITIALIZE & AUTHORIZE" title="เริ่มระบบ และอนุญาตสิทธิ์" subtitle="ระบบจะสร้างตารางข้อมูลให้อัตโนมัติในชีตที่ผูกไว้" lines={['เลือกฟังก์ชัน setupEmpty แล้วกด Run','ตรวจและยืนยันสิทธิ์บนบัญชี Google ของคุณ','กลับไปตรวจตาราง Products และ Transactions']} panel={'Select function: setupEmpty\n▶ Run\nProducts / Transactions\nAlerts / PurchaseOrders / Settings'} />;

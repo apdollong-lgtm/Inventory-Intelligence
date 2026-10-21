@@ -1,0 +1,2 @@
+import {GuideScene} from './GuideScene';
+export const Deploy=()=> <GuideScene step="05" badge="DEPLOY OWNER-ONLY" title="เผยแพร่เป็น Web app" subtitle="ตั้งค่าการเข้าถึงเฉพาะเจ้าของบัญชี เพื่อปกป้องฐานข้อมูล" lines={['Deploy → New deployment → Web app','Execute as: Me / Access: Only myself','เปิด URL ที่ลงท้าย /exec ด้วยบัญชีเดียวกัน']} panel={'Web app\nExecute as: Me\nWho has access: Only myself\nDeploy → copy /exec URL'} />;

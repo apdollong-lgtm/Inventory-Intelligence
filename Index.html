@@ -344,7 +344,7 @@ tr:last-child td{border-bottom:0}
         <div class="card action-card"><div class="ic" style="background:var(--purple-soft)">📄</div><div><h4>รายงานประจำเดือน</h4><p>สร้างชีต "Report YYYY-MM" สรุปมูลค่า รับเข้า/เบิกออก และ Top 10 (ส่งอีเมลถ้าเปิดไว้)</p><button class="btn" id="btnReport">สร้างรายงานเดือนที่แล้ว</button></div></div>
         <div class="card action-card"><div class="ic" style="background:var(--orange-soft)">🔔</div><div><h4>ตรวจสต็อก + แจ้งเตือนอีเมล</h4><p>ตรวจสินค้าต่ำกว่าเกณฑ์/ล้นสต็อก แล้วส่งสรุปทาง Gmail</p><button class="btn orange" id="btnCheck">ตรวจตอนนี้</button></div></div>
         <div class="card action-card"><div class="ic" style="background:var(--green-soft)">⬇️</div><div><h4>ส่งออกข้อมูล (CSV)</h4><p>ดาวน์โหลดเพื่อนำไปใช้ใน Excel / Looker Studio</p><button class="btn ghost" id="btnCsvP">สินค้า</button> <button class="btn ghost" id="btnCsvT">ธุรกรรม</button></div></div>
-        <div class="card action-card"><div class="ic" style="background:var(--blue-soft)">🗂️</div><div><h4>ฐานข้อมูล Google Sheets</h4><p>เปิดชีตเพื่อดู/แก้ไขข้อมูลดิบ</p><a class="btn ghost" id="lnkSheet" target="_blank" href="#">เปิด Google Sheets</a></div></div>
+        <div class="card action-card"><div class="ic" style="background:var(--blue-soft)">🗂️</div><div><h4>ฐานข้อมูล Google Sheets</h4><p>เปิดชีตเพื่อดู/แก้ไขข้อมูลดิบ</p><a class="btn ghost" id="lnkSheet" target="_blank" rel="noopener noreferrer" href="#">เปิด Google Sheets</a></div></div>
       </div>
       <div class="card"><div class="card-h"><div><h3>การแจ้งเตือนทั้งหมด</h3><p>100 รายการล่าสุด</p></div></div><div class="alerts" id="alertsAll"></div></div>
     </section>
@@ -357,9 +357,9 @@ tr:last-child td{border-bottom:0}
           <div class="card-h"><div><h3>ทั่วไป & การแจ้งเตือน</h3></div></div>
           <form id="setForm" class="form">
             <div class="field full"><label>ชื่อบริษัท</label><input id="sCompany"></div>
-            <div class="field full"><label>อีเมลรับแจ้งเตือน (คั่นหลายอีเมลด้วย ,)</label><input id="sEmail" placeholder="you@example.com"></div>
+            <div class="field full"><label>อีเมลรับแจ้งเตือน</label><input type="email" id="sEmail" placeholder="you@example.com"></div>
             <label class="switch full"><input type="checkbox" id="sEmailOn"> เปิดส่งอีเมลแจ้งเตือน / รายงาน</label>
-            <div class="field"><label>ดึงข้อมูลย้อนหลัง (วัน)</label><input type="number" id="sLook" min="30"></div>
+            <div class="field"><label>ดึงข้อมูลย้อนหลัง (วัน)</label><input type="number" id="sLook" min="365" max="3650" step="1"></div>
             <div class="full"><button class="btn" type="submit">บันทึกการตั้งค่า</button></div>
           </form>
         </div>
@@ -420,6 +420,27 @@ const netOf = t => t.type === 'OUT' ? -n0(t.qty) : n0(t.qty);
 
 function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : ''); clearTimeout(t._h); t._h = setTimeout(() => t.className = 'toast', 3200); }
 function busy(on) { $('#loading').classList.toggle('on', on); }
+
+const num_ = n0;
+function text_(v) {
+  const s = String(v == null ? '' : v).trim();
+  return /^[=+@\-\t\r]/.test(s) ? "'" + s : s;
+}
+
+function nonnegative_(v, label, fallback) {
+  if (v === '' || v == null) return fallback == null ? 0 : fallback;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new Error(label + ' ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป');
+  return n;
+}
+
+function validateProduct_(p) {
+  if (!p || typeof p !== 'object') throw new Error('ข้อมูลสินค้าไม่ถูกต้อง');
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(String(p.sku || '').trim())) throw new Error('SKU ใช้ A-Z, 0-9, จุด, ขีดกลาง หรือขีดล่าง สูงสุด 64 ตัว');
+  ['cost', 'price', 'stock', 'rop', 'max', 'lead'].forEach(k => nonnegative_(p[k], k));
+  if (num_(p.max) > 0 && num_(p.max) < num_(p.rop)) throw new Error('สต็อกสูงสุดต้องไม่น้อยกว่าจุดสั่งซื้อ');
+}
+
 
 /* ================= API (Apps Script or demo) ================= */
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
@@ -579,7 +600,10 @@ function buildSample_() {
   }
   function apply(t) {
     const p = db.products.find(x => x.sku === t.sku); if (!p) throw new Error('ไม่พบ SKU ' + t.sku);
-    const qty = n0(t.qty), type = t.type; const before = statusOf(p);
+    const qty = Number(t.qty), type = t.type;
+    if (!['IN', 'OUT', 'ADJ'].includes(type) || !Number.isFinite(qty)) throw new Error('ประเภทหรือจำนวนไม่ถูกต้อง');
+    if (t.cost !== '' && t.cost != null) nonnegative_(t.cost, 'ต้นทุน');
+    if (t.date && (!/^\d{4}-\d{2}-\d{2}$/.test(t.date) || isNaN(new Date(t.date + 'T00:00:00').getTime()) || ymd(new Date(t.date + 'T00:00:00')) !== t.date || t.date > ymd(new Date()))) throw new Error('วันที่ไม่ถูกต้องหรือเป็นวันในอนาคต'); const before = statusOf(p);
     if (type !== 'ADJ' && qty <= 0) throw new Error('จำนวนต้องมากกว่า 0');
     if (type === 'ADJ' && qty === 0) throw new Error('จำนวนปรับปรุงต้องไม่เป็น 0');
     const inCost = t.cost !== '' && t.cost != null ? Math.max(0, n0(t.cost)) : p.cost;
@@ -610,6 +634,7 @@ function buildSample_() {
     getInitData: out,
     setupWithSample() { load(); return out(); },
     saveProduct(p, isNew) {
+      validateProduct_(p);
       out(); const sku = String(p.sku || '').trim().toUpperCase(); if (!sku) throw new Error('กรุณาระบุ SKU'); if (!String(p.name || '').trim()) throw new Error('กรุณาระบุชื่อสินค้า');
       const ex = db.products.find(x => x.sku === sku);
       if (isNew && ex) throw new Error('SKU ' + sku + ' มีอยู่แล้ว');
@@ -626,6 +651,7 @@ function buildSample_() {
     deleteProduct(sku) {
       out();
       if (!db.products.some(p => p.sku === sku)) throw new Error('ไม่พบ SKU ' + sku);
+      if (db.products.some(p => p.sku === sku && p.stock !== 0) || db.txns.some(t => t.sku === sku) || db.pos.some(p => p.sku === sku)) throw new Error('ไม่สามารถลบสินค้าที่มีสต็อกหรือประวัติรายการ');
       db.products = db.products.filter(p => p.sku !== sku);
       db.pos = db.pos.filter(po => !(po.sku === sku && po.status === PO_PENDING));
       alert('UPDATE', sku, 'ลบสินค้า ' + sku);
@@ -633,7 +659,9 @@ function buildSample_() {
     },
     recordTransaction(t) { out(); apply(t); return out(); },
     createPurchaseOrder(items) {
-      out(); if (!items || !items.length) throw new Error('ยังไม่ได้เลือกสินค้า');
+      out(); if (!Array.isArray(items) || !items.length) throw new Error('ยังไม่ได้เลือกสินค้า');
+      const seen = new Set();
+      items.forEach(i => { if (!i || !db.products.some(p => p.sku === i.sku) || !Number.isFinite(Number(i.qty)) || Number(i.qty) <= 0 || seen.has(i.sku)) throw new Error('สินค้า/จำนวนไม่ถูกต้องหรือ SKU ซ้ำ'); seen.add(i.sku); });
       const y = new Date().getFullYear();
       const id = nextPoId(db.pos, y);
       let count = 0;
@@ -643,6 +671,7 @@ function buildSample_() {
     },
     receivePurchaseOrder(id) {
       out(); const lines = db.pos.filter(p => p.id === id && p.status === PO_PENDING); if (!lines.length) throw new Error('ใบสั่งซื้อนี้รับครบแล้ว');
+      if (lines.some(l => !db.products.some(p => p.sku === l.sku))) throw new Error('ไม่พบสินค้าใน PO');
       lines.forEach(l => {
         if (db.products.some(x => x.sku === l.sku)) {
           apply({ type: 'IN', sku: l.sku, qty: l.qty, cost: l.cost, ref: id, note: 'รับตามใบสั่งซื้อ' });
@@ -666,12 +695,12 @@ function hydrate() {
   r.products.forEach(p => ['cost','price','stock','rop','max','lead'].forEach(k => p[k] = n0(p[k])));
   r.txns.forEach(t => { t.qty = n0(t.qty); t.cost = n0(t.cost); t.ts = new Date(t.date).getTime(); });
   r.txns.sort((a, b) => a.ts - b.ts);
-  S.pmap = {}; r.products.forEach(p => S.pmap[p.sku] = p);
+  S.pmap = Object.create(null); r.products.forEach(p => S.pmap[p.sku] = p);
   // last IN per sku
-  const lastIn = {}; r.txns.forEach(t => { if (t.type === 'IN') lastIn[t.sku] = t.ts; });
+  const lastIn = Object.create(null); r.txns.forEach(t => { if (t.type === 'IN') lastIn[t.sku] = t.ts; });
   const now = Date.now();
   r.products.forEach(p => {
-    const li = lastIn[p.sku] || (p.lastReceived ? new Date(p.lastReceived).getTime() : now);
+    const li = Math.max(lastIn[p.sku] || 0, p.lastReceived ? new Date(p.lastReceived).getTime() || 0 : 0) || now;
     p.age = Math.max(0, Math.floor((now - li) / DAY));
     p.status = statusOf(p);
     p.value = p.stock * p.cost;
@@ -679,7 +708,7 @@ function hydrate() {
   const out90 = {}; const since = now - 90 * DAY;
   r.txns.forEach(t => { if (t.type === 'OUT' && t.ts >= since) out90[t.sku] = (out90[t.sku] || 0) + t.qty; });
   r.products.forEach(p => { p.out90 = out90[p.sku] || 0; p.daily = p.out90 / 90; p.cover = p.daily > 0 ? p.stock / p.daily : Infinity; });
-  const pending = {}; r.pos.forEach(po => { if (po.status === 'รอรับ') pending[po.sku] = (pending[po.sku] || 0) + n0(po.qty); });
+  const pending = Object.create(null); r.pos.forEach(po => { if (po.status === 'รอรับ') pending[po.sku] = (pending[po.sku] || 0) + n0(po.qty); });
   r.products.forEach(p => p.pending = pending[p.sku] || 0);
 }
 
@@ -696,7 +725,7 @@ function getRange() {
   let to = new Date($('#dTo').value + 'T23:59:59').getTime();
   if (isNaN(to)) to = new Date(ymd(today) + 'T23:59:59').getTime();
   if (isNaN(from)) from = to - 30 * DAY;
-  if (from > to) { const tmp = from; from = to - DAY + 1000; to = tmp; }
+  if (from > to) { const first = $('#dTo').value, last = $('#dFrom').value; from = new Date(first + 'T00:00:00').getTime(); to = new Date(last + 'T23:59:59').getTime(); }
   return { from, to, days: Math.max(1, Math.round((to - from) / DAY)) };
 }
 function setPreset(v) {
@@ -712,7 +741,7 @@ function setPreset(v) {
 function analyze() {
   const { from, to, days } = getRange();
   const P = S.raw.products, T = S.raw.txns.filter(t => t.ts >= from && t.ts <= to);
-  const usage = {}, usageQty = {};
+  const usage = Object.create(null), usageQty = Object.create(null);
   T.forEach(t => { if (t.type === 'OUT') { usage[t.sku] = (usage[t.sku] || 0) + t.qty * t.cost; usageQty[t.sku] = (usageQty[t.sku] || 0) + t.qty; } });
   // ABC
   let basis = 'usage'; let total = Object.values(usage).reduce((a, b) => a + b, 0);
@@ -778,9 +807,9 @@ function reorderList() {
 }
 
 /* ================= Charts ================= */
-Chart.defaults.font.family = "'Noto Sans Thai', system-ui, sans-serif";
-Chart.defaults.color = '#64748b';
-function chart(id, cfg) { if (S.charts[id]) S.charts[id].destroy(); S.charts[id] = new Chart(document.getElementById(id), cfg); }
+if (typeof Chart !== 'undefined') Chart.defaults.font.family = "'Noto Sans Thai', system-ui, sans-serif";
+if (typeof Chart !== 'undefined') Chart.defaults.color = '#64748b';
+function chart(id, cfg) { if (typeof Chart === 'undefined') { document.getElementById(id).parentElement.setAttribute('aria-label', 'ไม่สามารถโหลดกราฟได้ กรุณาตรวจอินเทอร์เน็ตแล้วรีเฟรช'); return; } if (S.charts[id]) S.charts[id].destroy(); S.charts[id] = new Chart(document.getElementById(id), cfg); }
 const gridOpt = { color: '#eef1f6' };
 const valueLabels = { id: 'vl', afterDatasetsDraw(c) { const ctx = c.ctx; c.data.datasets.forEach((ds, i) => { if (ds.type === 'line' || c.config.type !== 'bar') return; c.getDatasetMeta(i).data.forEach((b, j) => { ctx.save(); ctx.fillStyle = '#0f172a'; ctx.font = '600 12px Noto Sans Thai'; ctx.textAlign = 'center'; ctx.fillText(fmt(ds.data[j]), b.x, b.y - 6); ctx.restore(); }); }); } };
 
@@ -914,7 +943,7 @@ function renderMeta() {
   $('#sCompany').value = r.settings.companyName || ''; $('#sEmail').value = r.settings.alertEmail || '';
   $('#sEmailOn').checked = r.settings.emailAlerts === 'true'; $('#sLook').value = r.settings.lookbackDays || 400;
   $('#lnkSheet').href = r.ssUrl || '#';
-  $('#sideFoot').innerHTML = r.ssUrl ? `ข้อมูลเก็บที่ <a href="${esc(r.ssUrl)}" target="_blank">Google Sheets</a>` : 'โหมดตัวอย่าง (ไม่ได้เชื่อม Sheets)';
+  $('#sideFoot').innerHTML = r.ssUrl ? `ข้อมูลเก็บที่ <a href="${esc(r.ssUrl)}" target="_blank" rel="noopener noreferrer">Google Sheets</a>` : 'โหมดตัวอย่าง (ไม่ได้เชื่อม Sheets)';
   $('#alertsAll').innerHTML = alertsHtml(100);
 }
 
@@ -965,7 +994,7 @@ function openProduct(p) {
   $('#fSku').value = v.sku; $('#fSku').disabled = !!p; $('#fName').value = v.name; $('#fCat').value = v.category; $('#fUnit').value = v.unit;
   $('#fCost').value = v.cost; $('#fPrice').value = v.price; $('#fStock').value = v.stock; $('#fRop').value = v.rop; $('#fMax').value = v.max; $('#fLead').value = v.lead; $('#fSupplier').value = v.supplier;
   $('#fStockWrap').style.display = p ? 'none' : '';
-  $('#pModal').classList.add('open'); setTimeout(() => (p ? $('#fName') : $('#fSku')).focus(), 50);
+  $('#pModal').classList.add('open'); (p ? $('#fName') : $('#fSku')).focus();
 }
 $('#btnAddProduct').onclick = () => openProduct(null);
 $$('[data-close]').forEach(b => b.onclick = () => $('#pModal').classList.remove('open'));
@@ -1016,18 +1045,19 @@ $('#poRows').addEventListener('click', e => { const b = e.target.closest('[data-
 $('#btnReport').onclick = () => call('generateMonthlyReport', [], 'สร้างรายงานแล้ว').catch(() => {});
 $('#btnCheck').onclick = () => call('checkStockAlerts', [], 'ตรวจสต็อกเรียบร้อย').catch(() => {});
 $('#btnTriggers').onclick = () => call('installTriggers', []).catch(() => {});
-$('#btnSample').onclick = () => { if (confirm('ล้างข้อมูลทั้งหมดใน Products / Transactions / Alerts / PurchaseOrders แล้วโหลดข้อมูลตัวอย่าง?')) call('setupWithSample', [], 'โหลดข้อมูลตัวอย่างแล้ว').catch(() => {}); };
+$('#btnSample').onclick = () => { if (confirm(IS_GAS ? 'โหลดตัวอย่างได้เฉพาะฐานข้อมูลว่าง ยืนยันโหลดข้อมูลตัวอย่าง?' : 'รีเซ็ตข้อมูลตัวอย่างในหน้านี้?')) call('setupWithSample', [], 'โหลดข้อมูลตัวอย่างแล้ว').catch(() => {}); };
 $('#setForm').onsubmit = e => { e.preventDefault(); call('saveSettings', [{ companyName: $('#sCompany').value, alertEmail: $('#sEmail').value, emailAlerts: String($('#sEmailOn').checked), lookbackDays: $('#sLook').value }], 'บันทึกการตั้งค่าแล้ว').catch(() => {}); };
+function csvCell(v) { const s = String(v == null ? '' : v); return typeof v === 'string' && /^[\s]*[=+@\-]/.test(s) ? "'" + s : s; }
 function csv(name, rows) {
-  const s = '﻿' + rows.map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\n');
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([s], { type: 'text/csv;charset=utf-8' })); a.download = name; a.click();
+  const s = '﻿' + rows.map(r => r.map(v => '"' + csvCell(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([s], { type: 'text/csv;charset=utf-8' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 $('#btnCsvP').onclick = () => csv('products.csv', [['SKU', 'ชื่อ', 'หมวด', 'หน่วย', 'ต้นทุน', 'ราคา', 'คงเหลือ', 'จุดสั่งซื้อ', 'สูงสุด', 'สถานะ', 'มูลค่า', 'อายุ(วัน)']].concat(S.raw.products.map(p => [p.sku, p.name, p.category, p.unit, p.cost, p.price, p.stock, p.rop, p.max, STATUS[p.status].t, p.value, p.age])));
 $('#btnCsvT').onclick = () => csv('transactions.csv', [['วันที่', 'เลขที่', 'ประเภท', 'SKU', 'จำนวน', 'ต้นทุน', 'อ้างอิง', 'หมายเหตุ', 'ผู้บันทึก']].concat(S.raw.txns.map(t => [t.date, t.id, t.type, t.sku, t.qty, t.cost, t.ref, t.note, t.user])));
 
 /* ================= Boot ================= */
 (async function init() {
-  setPreset('365'); $('#txDate').value = ymd(new Date());
+  setPreset('365'); $('#txDate').value = ymd(new Date()); $('#txDate').max = ymd(new Date());
   $('#demoBanner').hidden = !!IS_GAS;
   busy(true);
   try {

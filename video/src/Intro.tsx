@@ -1,0 +1,2 @@
+import {GuideScene} from './GuideScene';
+export const Intro=()=> <GuideScene step="01" badge="YOUR DATA. YOUR GOOGLE ACCOUNT." title="เริ่มต้นจัดการสต็อก อย่างเป็นระบบ" subtitle="ติดตั้ง Inventory Intelligence บน Google Sheets + Apps Script" lines={['เตรียมบัญชี Google และไฟล์ที่ดาวน์โหลด','ใช้บัญชีเจ้าของเดียวตลอดการติดตั้ง','เปิดไฟล์ HTML โดยตรงเป็นโหมดตัวอย่าง']} panel={'Inventory Intelligence\nสินค้า → รับเข้า / เบิกออก\nวิเคราะห์ → วางแผนสั่งซื้อ'} />;

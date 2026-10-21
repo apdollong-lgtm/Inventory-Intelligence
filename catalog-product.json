@@ -1,0 +1,17 @@
+{
+  "slug": "inventory-intelligence",
+  "code": "FS-INVENTORY-INTELLIGENCE",
+  "name": "Inventory Intelligence",
+  "nameTh": "ระบบจัดการและวิเคราะห์สต็อก",
+  "category": "Warehouse & Inventory",
+  "description": "Owner-installed Google Sheets inventory template with stock movements, weighted average inbound cost, ABC analysis, reorder planning, purchase orders and email automation. Includes Thai installation guide and Remotion video. Owner-only access; Google live acceptance checks are required before production use.",
+  "descriptionTh": "ระบบสต็อกติดตั้งบน Google Sheets ของคุณ พร้อมรับเข้า เบิกออก ปรับปรุง ต้นทุนเฉลี่ย ABC แผนสั่งซื้อ PO และแจ้งเตือน รวมคู่มือติดตั้งภาษาไทยและวิดีโอ รองรับเจ้าของบัญชีเดียว ต้องตรวจรับบนบัญชี Google ก่อนใช้งานจริง",
+  "version": "1.0.0",
+  "status": "Beta",
+  "language": "Thai",
+  "accent": "#1f6feb",
+  "tags": ["Google Apps Script", "Google Sheets", "Inventory", "Thai"],
+  "features": ["Stock receipt, issue and adjustments", "Weighted average inbound cost", "ABC and reorder planning", "Purchase orders with duplicate receipt protection", "CSV exports and formula escaping", "Email alerts and monthly report triggers", "Thai installation guide and landscape motion graphics"],
+  "requirements": ["Google account with Apps Script enabled", "Owner-only deployment", "Internet connection", "Google Sheets and MailApp quotas apply", "Verify OAuth, email, triggers and backups in your own account"],
+  "demoUrl": null
+}

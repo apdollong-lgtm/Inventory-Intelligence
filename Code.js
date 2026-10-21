@@ -34,8 +34,7 @@ const PO_DONE = 'รับแล้ว';
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('Inventory Intelligence')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 function onOpen() {
@@ -129,6 +128,25 @@ function user_() {
 
 function num_(v) { const n = Number(v); return isFinite(n) ? n : 0; }
 
+function text_(v) {
+  const s = String(v == null ? '' : v).trim();
+  return /^[=+@\-\t\r]/.test(s) ? "'" + s : s;
+}
+
+function nonnegative_(v, label, fallback) {
+  if (v === '' || v == null) return fallback == null ? 0 : fallback;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new Error(label + ' ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป');
+  return n;
+}
+
+function validateProduct_(p) {
+  if (!p || typeof p !== 'object') throw new Error('ข้อมูลสินค้าไม่ถูกต้อง');
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(String(p.sku || '').trim())) throw new Error('SKU ใช้ A-Z, 0-9, จุด, ขีดกลาง หรือขีดล่าง สูงสุด 64 ตัว');
+  ['cost', 'price', 'stock', 'rop', 'max', 'lead'].forEach(k => nonnegative_(p[k], k));
+  if (num_(p.max) > 0 && num_(p.max) < num_(p.rop)) throw new Error('สต็อกสูงสุดต้องไม่น้อยกว่าจุดสั่งซื้อ');
+}
+
 function escHtml_(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -177,6 +195,7 @@ function getInitData() {
 
 function saveProduct(p, isNew) {
   return withLock_(() => {
+    validateProduct_(p);
     const sku = String(p.sku || '').trim().toUpperCase();
     if (!sku) throw new Error('กรุณาระบุ SKU');
     if (!String(p.name || '').trim()) throw new Error('กรุณาระบุชื่อสินค้า');
@@ -197,10 +216,10 @@ function saveProduct(p, isNew) {
     const maxVal = Math.max(0, num_(p.max));
 
     const values = [
-      sku, String(p.name).trim(), p.category || 'ทั่วไป', p.unit || 'ชิ้น',
+      sku, text_(p.name), text_(p.category || 'ทั่วไป'), text_(p.unit || 'ชิ้น'),
       costVal, priceVal,
       existing ? existing[6] : initStock,
-      ropVal, maxVal, leadVal, p.supplier || '',
+      ropVal, maxVal, leadVal, text_(p.supplier),
       existing ? existing[11] : (initStock > 0 ? new Date() : ''),
       new Date()
     ];
@@ -227,6 +246,8 @@ function deleteProduct(sku) {
     const sh = sheet_(SHEETS.P);
     const row = findRow_(sh, 1, sku);
     if (row < 0) throw new Error('ไม่พบ SKU ' + sku);
+    if (num_(sh.getRange(row, 7).getValue()) !== 0) throw new Error('ต้องปรับสต็อกให้เป็น 0 ก่อนลบสินค้า');
+    if (readRows_(SHEETS.T).some(t => String(t.sku) === String(sku)) || readRows_(SHEETS.PO).some(p => String(p.sku) === String(sku))) throw new Error('สินค้ามีประวัติรายการหรือ PO ไม่สามารถลบได้');
     sh.deleteRow(row);
     // ลบรายการ PO ที่ยังค้างรับของ SKU นี้เพื่อไม่ให้ค้างตอนกดรับสินค้า
     const poSh = sheet_(SHEETS.PO);
@@ -245,14 +266,22 @@ function deleteProduct(sku) {
 }
 
 function txnId_() {
-  return 'TX' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMddHHmmss') + Math.floor(Math.random() * 90 + 10);
+  return 'TX-' + Utilities.getUuid();
 }
 
 /** core stock movement (no lock) */
 function applyTxn_(t) {
+  if (!t || typeof t !== 'object') throw new Error('ข้อมูลรายการไม่ถูกต้อง');
   const type = String(t.type || '').toUpperCase();
   if (['IN', 'OUT', 'ADJ'].indexOf(type) < 0) throw new Error('ประเภทไม่ถูกต้อง');
-  const qty = num_(t.qty);
+  const qty = Number(t.qty);
+  if (!Number.isFinite(qty)) throw new Error('จำนวนต้องเป็นตัวเลขที่ถูกต้อง');
+  if (t.cost !== '' && t.cost != null) nonnegative_(t.cost, 'ต้นทุน');
+  if (t.date) {
+    const d = String(t.date);
+    const parsed = new Date(d + 'T00:00:00+07:00');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(parsed.getTime()) || Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM-dd') !== d || d > Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd')) throw new Error('วันที่ไม่ถูกต้องหรือเป็นวันในอนาคต');
+  }
   if (type !== 'ADJ' && qty <= 0) throw new Error('จำนวนต้องมากกว่า 0');
   if (type === 'ADJ' && qty === 0) throw new Error('จำนวนปรับปรุงต้องไม่เป็น 0');
 
@@ -283,7 +312,7 @@ function applyTxn_(t) {
   const now = new Date();
   let when = now;
   if (t.date) {
-    const parsed = new Date(t.date + 'T' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm:ss'));
+    const parsed = new Date(t.date + 'T' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm:ss') + '+07:00');
     if (!isNaN(parsed.getTime())) when = parsed;
   }
   sh.getRange(row, 5).setValue(cost);
@@ -296,7 +325,7 @@ function applyTxn_(t) {
   }
   sh.getRange(row, 13).setValue(now);
 
-  sheet_(SHEETS.T).appendRow([when, txnId_(), type, p.sku, qty, type === 'IN' ? inCost : cost, t.ref || '', t.note || '', user_()]);
+  sheet_(SHEETS.T).appendRow([when, txnId_(), type, p.sku, qty, type === 'IN' ? inCost : cost, text_(t.ref), text_(t.note), user_()]);
 
   p.stock = stock;
   const after = statusOf_(p);
@@ -323,9 +352,14 @@ function nextPoId_(pos, year) {
 
 function createPurchaseOrder(items) {
   return withLock_(() => {
-    if (!items || !items.length) throw new Error('ยังไม่ได้เลือกสินค้า');
+    if (!Array.isArray(items) || !items.length) throw new Error('ยังไม่ได้เลือกสินค้า');
     const products = readRows_(SHEETS.P);
-    const map = {}; products.forEach(p => map[p.sku] = p);
+    const map = Object.create(null); products.forEach(p => map[p.sku] = p);
+    const seen = new Set();
+    items.forEach(i => {
+      if (!i || !map[i.sku] || !Number.isFinite(Number(i.qty)) || Number(i.qty) <= 0 || seen.has(i.sku)) throw new Error('สินค้า/จำนวนสั่งซื้อไม่ถูกต้อง หรือมี SKU ซ้ำ');
+      seen.add(i.sku);
+    });
     const pos = readRows_(SHEETS.PO);
     const year = new Date().getFullYear();
     const id = nextPoId_(pos, year);
@@ -349,6 +383,9 @@ function receivePurchaseOrder(poId) {
     if (last < 2) throw new Error('ไม่พบใบสั่งซื้อ');
     const vals = sh.getRange(2, 1, last - 1, KEYS.PurchaseOrders.length).getValues();
     const pSh = sheet_(SHEETS.P);
+    vals.filter(r => r[0] === poId && r[7] === PO_PENDING).forEach(r => {
+      if (findRow_(pSh, 1, r[2]) < 0 || !Number.isFinite(Number(r[4])) || Number(r[4]) <= 0 || !Number.isFinite(Number(r[5])) || Number(r[5]) < 0) throw new Error('ข้อมูล PO ไม่ครบหรือไม่พบสินค้า ' + r[2]);
+    });
     let count = 0;
     vals.forEach((r, i) => {
       if (r[0] === poId && r[7] === PO_PENDING) {
@@ -367,11 +404,16 @@ function receivePurchaseOrder(poId) {
 
 function saveSettings(s) {
   return withLock_(() => {
+    if (!s || typeof s !== 'object' || Object.keys(s).some(k => !Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, k))) throw new Error('การตั้งค่าไม่ถูกต้อง');
+    if (s.lookbackDays != null && (!Number.isInteger(Number(s.lookbackDays)) || Number(s.lookbackDays) < 365 || Number(s.lookbackDays) > 3650)) throw new Error('ช่วงประวัติต้องเป็น 365–3650 วัน');
+    if (s.emailAlerts != null && !['true', 'false'].includes(String(s.emailAlerts))) throw new Error('ค่าการแจ้งเตือนไม่ถูกต้อง');
+    if (s.alertEmail && !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(String(s.alertEmail))) throw new Error('อีเมลไม่ถูกต้อง');
+    if (String(s.emailAlerts) === 'true' && !s.alertEmail) throw new Error('กรุณาระบุอีเมลแจ้งเตือน');
     const sh = sheet_(SHEETS.S);
     Object.keys(s || {}).forEach(k => {
       const row = findRow_(sh, 1, k);
-      if (row > 0) sh.getRange(row, 2).setValue(s[k]);
-      else sh.appendRow([k, s[k]]);
+      if (row > 0) sh.getRange(row, 2).setValue(text_(s[k]));
+      else sh.appendRow([k, text_(s[k])]);
     });
     return getInitData();
   });
@@ -489,6 +531,7 @@ function setupEmpty() {
 /** ล้างข้อมูลและใส่ข้อมูลตัวอย่าง 12 เดือน */
 function setupWithSample() {
   return withLock_(() => {
+    if ([SHEETS.P, SHEETS.T, SHEETS.PO].some(n => readRows_(n).length > 0)) throw new Error('โหลดตัวอย่างได้เฉพาะฐานข้อมูลว่าง เพื่อป้องกันข้อมูลจริงสูญหาย');
     const ss = ss_();
     sheet_(SHEETS.S); // สร้างชีต Settings ไว้ก่อนเสมอ ป้องกัน Error ลบชีตสุดท้ายของไฟล์
     [SHEETS.P, SHEETS.T, SHEETS.A, SHEETS.PO].forEach(n => { const s = ss.getSheetByName(n); if (s) ss.deleteSheet(s); });

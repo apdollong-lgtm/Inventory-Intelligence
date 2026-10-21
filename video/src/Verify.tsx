@@ -1,0 +1,2 @@
+import {GuideScene} from './GuideScene';
+export const Verify=()=> <GuideScene step="06" badge="VERIFY BEFORE REAL USE" title="ทดลองหนึ่งรายการ แล้วตรวจยอด" subtitle="ตรวจทั้งหน้าเว็บและ Google Sheets ก่อนนำเข้าข้อมูลจริง" lines={['เพิ่มสินค้า ยอดเริ่มต้น 10 หน่วย','รับเข้า 5 แล้วเบิกออก 3 → ต้องเหลือ 12','รีเฟรช ตรวจประวัติ และลองเบิกเกินยอด']} panel={'ยอดตั้งต้น        10\nรับเข้า               +5\nเบิกออก             −3\nยอดคงเหลือ        12 ✓'} />;

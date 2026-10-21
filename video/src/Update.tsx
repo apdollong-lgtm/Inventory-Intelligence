@@ -1,0 +1,2 @@
+import {GuideScene} from './GuideScene';
+export const Update=()=> <GuideScene step="07" badge="BACK UP. UPDATE. VERIFY." title="ตั้งค่าแจ้งเตือน และอัปเดตอย่างมั่นใจ" subtitle="เก็บข้อมูลของคุณไว้ และใช้ URL เดิมเมื่อมีเวอร์ชันใหม่" lines={['ตั้งอีเมลและติดตั้ง Trigger หากต้องการ','ทำสำเนา Sheets ก่อนอัปเดตทุกครั้ง','วางไฟล์รุ่นใหม่ → Manage deployments → New version']} panel={'สำรอง Google Sheets\nอัปเดต Code + Index\nเลือก New version → Deploy\nตรวจยอดอีกครั้ง ✓'} />;
